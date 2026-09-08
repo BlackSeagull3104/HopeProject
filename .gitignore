@@ -37,3 +37,6 @@ credentials*.json
 # OS files
 .DS_Store
 Thumbs.db
+
+# Private archive exports at project root
+/archive/
