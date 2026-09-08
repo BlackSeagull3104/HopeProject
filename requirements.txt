@@ -1,1 +1,5 @@
-# No third-party dependencies required for the initial scaffold.
+# Pillow is used only to read local image dimensions for Markdown presentation.
+Pillow>=10.0,<13
+
+# Tkinter calendar cells, navigation and disabled-date styling.
+tkcalendar==1.6.1

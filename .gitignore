@@ -40,3 +40,6 @@ Thumbs.db
 
 # Private archive exports at project root
 /archive/
+
+# Private application-generated archive runs
+hope-archive-*/

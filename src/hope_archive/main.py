@@ -1,39 +1,39 @@
-"""Minimal command-line entry point for the read-only diary exporter."""
-
+"""Thin CLI adapter for the same archive service used by the UI."""
 import argparse
-from datetime import date
 from pathlib import Path
 import sys
 
-# Support the scaffold's existing direct-script command as well as module usage.
 if __package__ in (None, ""):
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from hope_archive.api import DiaryAPIError, fetch_all_diaries
+from hope_archive import application
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Export your own Hope diaries (type=mine).")
+    parser = argparse.ArgumentParser(description="Archive your own Hope diaries as Markdown (type=mine).")
     parser.add_argument("--user-id", required=True, help="Your own backend userId")
-    parser.add_argument("--begin-date", required=True, type=date.fromisoformat)
-    parser.add_argument("--end-date", required=True, type=date.fromisoformat)
-    parser.add_argument("--page-size", type=int, default=20)
-    parser.add_argument("--timeout", type=float, default=30)
-    parser.add_argument("--max-pages", type=int, default=10000)
-    parser.add_argument("--data-dir", type=Path, default=Path(__file__).resolve().parents[2] / "data")
+    parser.add_argument("--begin-date", required=True, help="YYYY-MM-DD")
+    parser.add_argument("--end-date", required=True, help="YYYY-MM-DD")
+    parser.add_argument("--note-type", type=int, choices=sorted(set(application.NOTE_TYPE_OPTIONS.values())), default=0)
+    # Legacy spelling remains an alias; both select a root, not a run directory.
+    parser.add_argument("--output-dir", "--data-dir", dest="output_dir", type=Path,
+                        default=Path(__file__).resolve().parents[2] / "data",
+                        help="Archive root; each invocation creates a new run directory")
     args = parser.parse_args()
-    if args.begin_date > args.end_date:
-        parser.error("begin-date must be on or before end-date")
     try:
-        entries = fetch_all_diaries(
-            args.user_id, args.begin_date.isoformat(), args.end_date.isoformat(),
-            page_size=args.page_size, timeout=args.timeout,
-            max_pages=args.max_pages, data_dir=args.data_dir)
-    except (DiaryAPIError, OSError, ValueError) as exc:
-        print(f"Export failed: {exc}", file=sys.stderr)
+        result = application.export_archive(
+            args.user_id, args.begin_date, args.end_date, args.note_type,
+            args.output_dir, on_progress=lambda message: print(message, flush=True))
+    except application.ArchiveError as exc:
+        print(f"Archive failed: {exc}", file=sys.stderr)
+        if exc.output_dir:
+            print(f"Saved files / diagnostics: {exc.output_dir}", file=sys.stderr)
         return 1
-    print(f"Saved {len(entries)} diaries to {args.data_dir / 'processed/diaries.json'}")
-    return 0
+    print(f"Diaries: {result.diary_count}")
+    print(f"Media: downloaded={result.media['downloaded']}, skipped={result.media['skipped']}, failed={result.media['failed']}")
+    print(f"Markdown: generated={result.markdown['generated']}, skipped={result.markdown['skipped']}, failed={result.markdown['failed']}")
+    print(f"Output: {result.output_dir}")
+    return 0 if result.complete else 1
 
 
 if __name__ == "__main__":
