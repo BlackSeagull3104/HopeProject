@@ -9,7 +9,7 @@ Set-Location 'D:\AUniversityLearning\3102\CODING\HopeProject'
 .\.venv\Scripts\python.exe src\hope_archive\main.py --user-id 'YOUR_BACKEND_USER_ID' --begin-date '2026-01-01' --end-date '2026-09-08'
 ```
 
-将占位符替换为你本人的 backend userId，并选择日期范围。日期格式为 YYYY-MM-DD。本原型不执行登录、账户验证，也不接收认证值。如果服务需要认证，请求会失败；认证支持不属于当前阶段。
+将占位符替换为你本人的 backend userId，并选择日期范围。日期格式为 YYYY-MM-DD。此 CLI 仍使用手动 ID；桌面 GUI 已增加短信和密码登录，见下方说明。
 
 可选参数：`--note-type 0` 和 `--output-dir PATH`。`--data-dir` 是 `--output-dir` 的兼容别名，现在表示归档根目录。默认根目录是项目 `data/`。旧入口的 `--page-size`、`--timeout`、`--max-pages` 不再接受；完整归档使用 application/core 默认设置（20 条/页、30 秒 socket timeout、最多 10000 页），不要求用户输入 pageNum。
 
@@ -68,7 +68,7 @@ data/             # 私人输出，由 Git 忽略
 docs/             # 早期规划和源码审查文档
 ```
 
-早期规划文档描述了更广泛的未来功能；当前实现仅包括只读日记下载、数据标准化、媒体本地化和 Markdown 导出。没有实现登录、账户验证、安全测试、访问其他用户数据、AI 总结、语义搜索、PDF 导出、胶囊日记功能或安装程序。
+早期规划文档描述了更广泛的未来功能；当前实现仅包括只读日记下载、数据标准化、媒体本地化和 Markdown 导出。桌面 UI 已实现短信/密码登录；没有实现账户自动发现、安全测试、访问其他用户数据、AI 总结、语义搜索、PDF 导出、胶囊日记功能或安装程序。
 
 参考仓库不作修改。真实日记和 raw outputs 应保存在被 Git 忽略的 `data/` 目录。代码不会硬编码凭据，也不要求把凭据写入文件。
 
@@ -95,7 +95,7 @@ Markdown 位于 `data/archive/YYYY/MM/`。请保留 `data/archive/media/` 和 `m
 
 ## 桌面归档界面 V0.1
 
-项目提供 Tkinter 最小界面，输入本人 User ID、开始日期、结束日期、默认日记类型和归档根目录，点击“开始归档”串联已有流程。
+项目提供 Tkinter 最小界面，先选择短信验证码或密码登录；成功后自动使用服务器 datas.id，选择日期、默认日记类型和归档根目录，点击“开始归档”。不再要求手动输入 ID。
 
 ```powershell
 .\.venv\Scripts\python.exe -B src\hope_archive\ui.py
@@ -104,3 +104,20 @@ Markdown 位于 `data/archive/YYYY/MM/`。请保留 `data/archive/media/` 和 `m
 后台执行避免界面冻结；每次创建独立归档子目录，不覆盖旧数据。当前只支持已经使用的默认日记类型，业务名称仍待确认。媒体部分失败会明确提示“归档部分完成”。
 
 详见[UI 与 application layer](docs/application-ui.md)。normalize/media/export_markdown 的独立阶段 CLI 仍可用；main.py 现在与 UI 共用完整流程。
+
+登录算法、接口与运行期间状态说明见[认证说明](docs/authentication.md)。登录响应不落盘，关闭程序后需要重新登录。
+
+## Authentication
+
+Hope Archive 支持 SMS verification-code login 和 mobile/password login。
+认证客户端是与官方 Hope Android client 协议兼容的独立 Python 实现。
+协议验证方法见 [Reproducing the Authentication Analysis](docs/reproducibility.md)，请求结构见 [Authentication](docs/authentication.md)。
+本仓库不包含官方 APK、完整反编译应用源码、官方资源或真实抓包文件。
+
+本项目为非官方项目，与 Hope 或其开发者无隶属关系，也未获其认可或背书；仅用于归档用户有权访问的数据。
+
+## 本地认证配置
+
+新克隆的仓库不包含实际签名配置。先复制 `.env.example` 为 `.env`，填写自行核对的 `SEND_CODE_PROTOCOL_KEY` 和 `LOGIN_PROTOCOL_KEY`，再启动登录 UI。已有 `.env` 时不要覆盖。实际值不应放入 Git；环境变量可覆盖文件配置。
+
+本地 `.env` 与个人密码不同：只存协议配置，手机号、密码、验证码仍在运行时输入。测试使用虚构配置，不需要真实值。

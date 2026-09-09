@@ -7,6 +7,7 @@ import unittest
 from unittest.mock import patch
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'src'))
 from hope_archive.ui import ArchiveWindow
+from hope_archive.auth import AuthResult
 from hope_archive.application import ArchiveError, ArchiveResult
 
 
@@ -15,13 +16,12 @@ class UITests(unittest.TestCase):
         try: self.root = tk.Tk()
         except tk.TclError as exc: self.skipTest(f'Tk display unavailable: {exc}')
         self.root.withdraw()
-        self.window = ArchiveWindow(self.root)
+        self.window = ArchiveWindow(self.root, AuthResult('fixture-user'))
         self.addCleanup(self.root.destroy)
 
     def test_background_result_and_duplicate_click_guard(self):
         result=ArchiveResult(Path('fixture-output'),1,{'unique_references':0,'downloaded':0,'skipped':0,'failed':0}, {'generated':1,'skipped':0,'failed':0})
         with patch('hope_archive.ui.export_archive',return_value=result) as service:
-            self.window.user_id.set('fixture-user')
             self.window.start_export(); self.window.start_export()
             self.window.worker_thread.join(timeout=3)
             self.assertFalse(self.window.worker_thread.is_alive())
@@ -31,14 +31,15 @@ class UITests(unittest.TestCase):
         self.assertFalse(self.window.busy)
         self.assertEqual(self.window.status.get(),'归档完成')
         self.assertEqual(service.call_args.args[3],0)
-        self.assertEqual(self.window.user_id.get(),'fixture-user')
+        self.assertEqual(service.call_args.args[0], 'fixture-user')
+        self.assertFalse(hasattr(self.window, 'user_id'))
 
     def test_dynamic_defaults(self):
         other = tk.Toplevel(self.root)
         other.withdraw()
         with patch('hope_archive.ui.date', wraps=date) as clock:
             clock.today.return_value = date(2024, 2, 29)
-            window = ArchiveWindow(other)
+            window = ArchiveWindow(other, AuthResult('fixture-user'))
         self.assertEqual(window.begin_date.get(), '2024-02-01')
         self.assertEqual(window.end_date.get(), '2024-02-29')
         window.close()
@@ -70,7 +71,6 @@ class UITests(unittest.TestCase):
             self.assertEqual(str(picker.field.cget('state')), 'readonly')
 
     def test_invalid_range_shows_application_message_without_fetch(self):
-        self.window.user_id.set('fixture-user')
         self.window.begin_date.set('2024-02-02')
         self.window.end_date.set('2024-02-01')
         with patch('hope_archive.application.fetch_all_diaries') as fetch:

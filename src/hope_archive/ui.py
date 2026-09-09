@@ -13,12 +13,15 @@ if __package__ in (None, ''):
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from hope_archive.application import ArchiveError, NOTE_TYPE_OPTIONS, export_archive
 from hope_archive.date_picker import DatePicker
+from hope_archive.auth import AuthResult
+from hope_archive.login_ui import LoginWindow
 
 PROJECT = Path(__file__).resolve().parents[2]
 
 
 class ArchiveWindow:
-    def __init__(self, root):
+    def __init__(self, root, current_user: AuthResult):
+        self.current_user = current_user
         self.root = root
         self.events = queue.Queue()
         self.busy = False
@@ -32,13 +35,16 @@ class ArchiveWindow:
         ttk.Label(frame, text='Hope Archive', font=('Microsoft YaHei', 20)).grid(row=0, column=0, columnspan=3, sticky='w')
         ttk.Label(frame, text='将你自己的日记保存为本地 Markdown 归档。').grid(row=1, column=0, columnspan=3, sticky='w', pady=(6, 20))
         today = date.today()
-        self.user_id = tk.StringVar()
+        mobile = current_user.mobile
+        masked = mobile[:3] + '****' + mobile[-4:] if mobile and len(mobile) >= 7 else '未提供'
+        identity = '登录成功' + (f' · {current_user.nickname}' if current_user.nickname else '')
+        ttk.Label(frame, text=identity + f' · 手机号：{masked}', wraplength=530).grid(row=2, column=0, columnspan=3, sticky='w')
         self.begin_date = tk.StringVar(value=today.replace(day=1).isoformat())
         self.end_date = tk.StringVar(value=today.isoformat())
         self.note_type = tk.StringVar(value=next(iter(NOTE_TYPE_OPTIONS)))
         self.output_dir = tk.StringVar(value=str(PROJECT / 'data'))
         self.controls = []
-        for row, label, variable in [(2, '你的 User ID', self.user_id), (6, '归档根目录', self.output_dir)]:
+        for row, label, variable in [(6, '归档根目录', self.output_dir)]:
             ttk.Label(frame, text=label).grid(row=row, column=0, sticky='w', padx=(0, 16), pady=9)
             entry = ttk.Entry(frame, textvariable=variable, width=38)
             entry.grid(row=row, column=1, sticky='ew', pady=9)
@@ -89,7 +95,7 @@ class ArchiveWindow:
     def start_export(self):
         if self.busy: return
         # All Tk variables are read on the UI thread, never in the worker.
-        values = (self.user_id.get(), self.begin_date.get(), self.end_date.get(),
+        values = (self.current_user.user_id, self.begin_date.get(), self.end_date.get(),
                   NOTE_TYPE_OPTIONS.get(self.note_type.get()), self.output_dir.get())
         self.result_dir = None
         self.open_button.configure(state='disabled')
@@ -153,7 +159,7 @@ class ArchiveWindow:
 
 def main():
     root = tk.Tk()
-    ArchiveWindow(root)
+    LoginWindow(root, lambda user: ArchiveWindow(root, user))
     root.mainloop()
 
 

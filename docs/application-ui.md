@@ -9,15 +9,16 @@ Set-Location 'D:\AUniversityLearning\3102\CODING\HopeProject'
 ```
 
 本机 Python 包含 Tkinter 8.6。UI 使用 tkcalendar 1.6.1 提供日历格子（依赖 Babel）；Pillow 是现有 Markdown 图片尺寸读取依赖。
-填入你自己的 User ID、起止日期，选择日记类型和归档根目录，点击“开始归档”。不保存个人配置，不自动查找 User ID。
+启动先使用本人账号短信/密码登录；服务器 datas.id 成为当前运行身份，随后选择日期、日记类型和根目录归档。身份不持久化。
 
 ## 结构与职责
 
 CLI / UI → application.export_archive() → 已有 archive core → files。
 
-main.py 仅解析 argparse 参数、传给 service 并显示结果；ui.py 使用 widgets 收集同样五个输入。CLI 的 --output-dir（兼容别名 --data-dir）与 UI 根目录选择具有相同语义。
+main.py 保留手动 ID 参数；ui.py 从登录 AuthResult 取得 ID，其余参数来自 widgets。CLI 的 --output-dir（兼容别名 --data-dir）与 UI 根目录选择具有相同语义。
 
-- ui.py：五个输入、文件夹选择、阶段提示和结果汇总；不了解 payload、分页或 manifest 格式。
+- login_ui.py：登录方式、凭据输入、后台认证和成功回调。
+- ui.py：使用 current_user.user_id，日期、文件夹选择、阶段提示和结果汇总；不了解 payload、分页或 manifest 格式。
 - application.py：校验输入、创建本次目录、串联已有函数、把异常转换为简短中文提示。
 - test_application.py：mock 网络和合成数据，覆盖校验、真实core串联、mine、独立目录及失败行为。
 - test_ui.py：隐藏 Tk 窗口 + mock service，检查后台结果、重复提交防护和错误显示；没有显示服务时自动 skip。
@@ -77,7 +78,7 @@ core 未提供 per-page callback，所以 UI 不编造第几页或总进度。
 Markdown 部分失败也不能显示完整成功。媒体详情在 manifest，Markdown core 的具体失败信息仍在启动终端。
 
 本版没有取消、暂停、断点续传。归档进行中正常关闭会提示等待；强制结束进程仍可能留下部分文件。
-login/authentication、账户所有权验证、User ID 自动解析均未实现。用户只应输入本人的 ID。
+短信/密码登录与 datas.id 提取已实现；仅保留运行期间身份，详见 authentication.md。
 不实现 PDF 转换、其他账号浏览或新 API。
 
 ## 离线验证

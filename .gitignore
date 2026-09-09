@@ -43,3 +43,21 @@ Thumbs.db
 
 # Private application-generated archive runs
 hope-archive-*/
+
+# Locally acquired third-party clients and analysis artifacts (never redistribute)
+*.apk
+*.apks
+*.xapk
+*.har
+*.chls
+*.chlsj
+charles*/
+jadx*/
+decompiled*/
+captures*/
+/references/
+
+# Sensitive local runtime state, not source modules or protocol documentation
+session*.json
+auth*.json
+cookies*.json
