@@ -24,8 +24,15 @@ credentials*.json
 .idea/
 
 # Private journals, attachments, exports and databases
-/data/*
-!/data/.gitkeep
+/data/raw/
+/data/processed/
+/data/archive/
+/data/archive_*/
+/data/architecture_verification/
+/data/markdown*/
+/data/media/
+/data/exports/
+# Safe example data and fixtures remain eligible for explicit review.
 *.db
 *.db-*
 *.sqlite
@@ -61,3 +68,11 @@ captures*/
 session*.json
 auth*.json
 cookies*.json
+
+# Frontend dependencies and generated output
+node_modules/
+*.tsbuildinfo
+
+# Private local directories and token stores
+private/
+tokens*.json

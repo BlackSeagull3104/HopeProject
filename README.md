@@ -64,13 +64,13 @@ src/hope_archive/
   ui.py           # Tkinter 入口
 tests/
   test_diaries.py
-data/             # 私人输出，由 Git 忽略
+data/             # 私人输出子目录被忽略，安全 fixtures 可单独审查
 docs/             # 早期规划和源码审查文档
 ```
 
 早期规划文档描述了更广泛的未来功能；当前实现仅包括只读日记下载、数据标准化、媒体本地化和 Markdown 导出。桌面 UI 已实现短信/密码登录；没有实现账户自动发现、安全测试、访问其他用户数据、AI 总结、语义搜索、PDF 导出、胶囊日记功能或安装程序。
 
-参考仓库不作修改。真实日记和 raw outputs 应保存在被 Git 忽略的 `data/` 目录。代码不会硬编码凭据，也不要求把凭据写入文件。
+参考仓库不作修改。真实日记和 raw outputs 应保存在 `.gitignore` 明确忽略的归档、raw/processed 等子目录；不要假设任意 data 子目录都会被忽略。代码不会硬编码凭据，也不要求把凭据写入文件。
 
 ## Markdown 归档
 
@@ -121,3 +121,9 @@ Hope Archive 支持 SMS verification-code login 和 mobile/password login。
 新克隆的仓库不包含实际签名配置。先复制 `.env.example` 为 `.env`，填写自行核对的 `SEND_CODE_PROTOCOL_KEY` 和 `LOGIN_PROTOCOL_KEY`，再启动登录 UI。已有 `.env` 时不要覆盖。实际值不应放入 Git；环境变量可覆盖文件配置。
 
 本地 `.env` 与个人密码不同：只存协议配置，手机号、密码、验证码仍在运行时输入。测试使用虚构配置，不需要真实值。
+
+## React 前端与统一仓库
+
+React + shadcn 前端位于 `frontend/vite-app/`，通过本机 Python API 调用既有后端。完整启动命令、登录数据流和当前限制见 [React / Local API](docs/REACT_LOCAL_API.md)。旧 Python UI 和 CLI 保留。
+
+整个项目现在只有根 Git 仓库；前端是普通目录，不需要单独 clone、初始化 Git 或更新 submodule。在根目录统一提交 Python、React、tests 和 docs。仓库整理及发布检查见 [repository-cleanup.md](docs/repository-cleanup.md)。
