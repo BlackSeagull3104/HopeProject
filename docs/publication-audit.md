@@ -1,3 +1,5 @@
+> 历史审计记录：下述协议配置隔离策略已由 2026-09-10 的明确分发授权取代。当前仅两个确认的应用级常量可分发，个人数据仍禁止发布；当前规则见 [PACKAGING.md](PACKAGING.md)。
+
 # Publication audit — local configuration release
 
 ## Final publication policy

@@ -1,26 +1,37 @@
 # Hope Archive
 
-Hope Archive 是一个将自己日记导出为本地归档和 Markdown 的桌面软件原型。
+一个 local-first Hope 日记归档与导出桌面工具。
 
 ## Download
 
-**Windows x64**
+### Windows
 
-[**Download Hope Archive for Windows**](https://github.com/BlackSeagull3104/HopeProject/releases/tag/v0.1.0-dev)
+[⬇ **Download Hope Archive for Windows**](https://github.com/BlackSeagull3104/HopeProject/releases/tag/v0.1.1-dev)
 
-Current status: **Development / Pre-release** (`v0.1.0-dev`)
+> Development Preview · Windows x64 · v0.1.1-dev
 
-### 普通用户：下载与运行
+1. 下载 `Hope-Archive-v0.1.1-dev-windows-x64-setup.exe`。
+2. 运行安装器。
+3. 从 Windows 开始菜单启动 **Hope Archive**。
+4. 使用自己的 Hope 账号登录。
 
-1. 打开上方 GitHub Release，下载 `Hope-Archive-v0.1.0-dev-windows-x64.zip`。
-2. 完整解压 ZIP；不要在压缩包内直接运行。
-3. 进入 `Hope Archive` 文件夹，运行 `Hope Archive.exe`。必须保留同目录的 `hope-archive-backend.exe`。
+只需一个安装器；Python 后端会自动安装、启动和退出。无需 Python、Node.js、Rust、克隆仓库或手动配置协议常量。若系统缺少 WebView2，安装器会联网安装它。
 
-运行打包版本不需要安装 Python、Node.js、Rust、Cargo 或 Visual Studio Build Tools。需要 Windows x64 和 [Microsoft WebView2 Runtime](https://developer.microsoft.com/en-us/microsoft-edge/webview2/)；Windows 通常已预装。
+这是未签名开发预览，不是稳定版本。应用级协议常量随 Python 后端分发；手机号、密码、验证码、会话和日记不随安装包分发。
 
-这是供开发验证的未签名版本，不代表稳定发布。原生窗口完整人工验证尚未完成；此前一次启动观察到窗口短暂出现后退出，原因尚未确认。真实账号登录和完整桌面归档流程也尚未验收。
+## Features
 
-安装包不含开发者账号、会话或协议密钥。真实登录仍需自行提供合法取得的协议参数，配置方法见 [打包与运行说明](docs/PACKAGING.md#运行配置)。默认用户配置和归档位于 `%LOCALAPPDATA%\HopeArchive`，可在应用中选择导出位置；仅操作你自己的日记。
+- 通过现有短信/密码认证流程登录自己的账号。
+- 下载自己的日记与媒体，整理为本地 Markdown。
+- React 桌面界面与自动管理的 Python 后端。
+
+## Usage
+
+登录后选择日期和导出位置。默认数据目录为 `%LOCALAPPDATA%\HopeArchive`，默认归档在其 `archives` 下。只操作自己的数据。认证信息在当前运行期间使用；导出的个人数据由你在本机管理。
+
+## Screenshots
+
+当前不发布包含账号信息的测试截图。构建说明与验证边界见 [PACKAGING.md](docs/PACKAGING.md)。
 
 ## 开发者：从源码运行与构建
 
@@ -154,7 +165,7 @@ Hope Archive 支持 SMS verification-code login 和 mobile/password login。
 
 ## 本地认证配置
 
-新克隆的仓库不包含实际签名配置。先复制 `.env.example` 为 `.env`，填写自行核对的 `SEND_CODE_PROTOCOL_KEY` 和 `LOGIN_PROTOCOL_KEY`，再启动登录 UI。已有 `.env` 时不要覆盖。实际值不应放入 Git；环境变量可覆盖文件配置。
+两个应用级协议常量已随后端提供。开发者可选用项目根目录 `.env` 覆盖，环境变量优先；普通用户不需要创建配置文件。只有这两个经确认的应用常量可分发，个人凭据和整个 `.env` 不得提交。
 
 本地 `.env` 与个人密码不同：只存协议配置，手机号、密码、验证码仍在运行时输入。测试使用虚构配置，不需要真实值。
 

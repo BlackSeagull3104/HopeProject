@@ -353,17 +353,23 @@ React   Python Sidecar
 
 ### Tasks
 
-- [ ] Production React build
-- [ ] Tauri shell
-- [ ] PyInstaller Python backend build
-- [ ] Python sidecar integration
-- [ ] Application icon integration
-- [ ] Windows runnable application
+- [x] Production React build
+- [x] Tauri shell
+- [x] PyInstaller Python backend build
+- [x] Python sidecar integration
+- [x] Application icon integration
+- [x] Windows runnable application
 - [ ] Fresh-machine / fresh-environment verification
-- [ ] Optional installer
-- [ ] GitHub Release
+- [x] Optional installer
+- [x] GitHub Release
 
 ---
+
+### Early infrastructure milestone — 2026-09-10
+
+The v0.1.1-dev installer infrastructure builds a complete Windows x64 NSIS package with bundled backend-only application protocol constants. Installation outside the repository, native React UI, automatic sidecar, communication and relaunch were observed. The user manually confirmed successful login. After closure no application/backend processes remained; duplicate launch did not add another backend group.
+
+This records an early development distribution milestone only. The scheduled 2026-09-23 final packaging milestone and fresh-machine verification remain open. No unrelated product features are marked complete.
 
 # 9. Implementation Schedule
 

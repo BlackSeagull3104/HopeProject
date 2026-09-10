@@ -21,7 +21,7 @@ try {
     if (-not (Get-Command cargo -ErrorAction SilentlyContinue)) { throw 'Rust/Cargo is missing. Install Rust MSVC and Microsoft C++ Build Tools.' }
     Push-Location frontend/vite-app
     try {
-        npm run tauri -- build --no-bundle --target x86_64-pc-windows-msvc
+        npm run tauri -- build --bundles nsis --target x86_64-pc-windows-msvc
         if ($LASTEXITCODE -ne 0) { throw 'Tauri build failed' }
     } finally { Pop-Location }
     $portable = Join-Path $root 'dist\windows\Hope Archive'
@@ -30,5 +30,12 @@ try {
     Copy-Item -LiteralPath 'dist/backend/hope-archive-backend.exe' -Destination $portable
     & $python scripts/verify_executable_icon.py (Join-Path $portable 'Hope Archive.exe')
     if ($LASTEXITCODE -ne 0) { throw 'Executable icon verification failed' }
+    $version = (Get-Content frontend/vite-app/src-tauri/tauri.conf.json -Raw | ConvertFrom-Json).version
+    $installer = "frontend/vite-app/src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/Hope Archive_${version}_x64-setup.exe"
+    if (-not (Test-Path -LiteralPath $installer)) { throw 'Installer missing' }
+    New-Item -ItemType Directory -Force dist/releases | Out-Null
+    $release = "dist/releases/Hope-Archive-v${version}-dev-windows-x64-setup.exe"
+    Copy-Item -LiteralPath $installer -Destination $release
+    Write-Output "Installer: $release"
     Write-Output "Portable application: $portable"
 } finally { Pop-Location }

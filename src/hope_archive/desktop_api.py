@@ -49,7 +49,10 @@ def main():
         raise ValueError('Invalid desktop bootstrap')
     home = user_home().resolve()
     home.mkdir(parents=True, exist_ok=True)
-    auth.AUTH_ENV_FILE = home / '.env'
+    auth.configure_desktop()
+    # Fail before reporting readiness if the distribution is incomplete.
+    for name in ('SEND_CODE_PROTOCOL_KEY', 'LOGIN_PROTOCOL_KEY'):
+        auth.get_protocol_key(name)
     server = ThreadingHTTPServer(('127.0.0.1', 0), DesktopHandler)
     server.desktop_key = key
     server.service = DesktopService(home)

@@ -1,6 +1,6 @@
 [package]
 name = "hope-archive"
-version = "0.1.0"
+version = "0.1.1"
 description = "Hope Archive Windows packaging prototype"
 edition = "2021"
 

@@ -65,18 +65,18 @@ Archive 页面没有 userId 输入框，服务端也拒绝归档请求中额外�
 Terminal 1：Python local API
 
 ```powershell
-Set-Location 'D:\AUniversityLearning\3102\CODING\HopeProject'
+# 在仓库根目录执行
 .\.venv\Scripts\python.exe -m pip install -r requirements.txt
 $env:PYTHONPATH = (Join-Path (Get-Location) 'src')
 .\.venv\Scripts\python.exe -m hope_archive.local_api
 ```
 
-首次或依赖缺失时执行 pip install；本轮没有增加 Python 依赖。继续使用项目已有的 `.env` 协议配置；不要将该配置放在前端。现有 `.env.example` 保持原样。
+首次或依赖缺失时执行 pip install；本轮没有增加 Python 依赖。后端内置应用协议常量；开发模式可选用 `.env` 覆盖，环境变量优先。不要将协议值放入前端。
 
 Terminal 2：React/Vite
 
 ```powershell
-Set-Location 'D:\AUniversityLearning\3102\CODING\HopeProject\frontend\vite-app'
+Set-Location frontend/vite-app
 npm ci
 npm run dev
 ```
@@ -100,7 +100,7 @@ npm run dev
 测试命令：
 
 ```powershell
-Set-Location 'D:\AUniversityLearning\3102\CODING\HopeProject'
+# 在仓库根目录执行
 .\.venv\Scripts\python.exe -m unittest discover -s tests
 Set-Location frontend\vite-app
 npm run build

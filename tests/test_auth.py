@@ -33,7 +33,7 @@ class AuthTests(unittest.TestCase):
 
     def test_missing_config_prevents_request(self):
         with tempfile.TemporaryDirectory() as folder:
-            with patch.object(auth,'AUTH_ENV_FILE',Path(folder)/'absent'), patch.dict(auth.os.environ,{},clear=True), patch.object(auth,'_post_auth') as transport:
+            with patch.object(auth,'AUTH_ENV_FILE',Path(folder)/'absent'), patch.dict(auth.os.environ,{},clear=True), patch.object(auth, 'APPLICATION_PROTOCOL', {}), patch.object(auth,'_post_auth') as transport:
                 with self.assertRaisesRegex(auth.AuthError,'SEND_CODE_PROTOCOL_KEY'):
                     auth.send_security_code('fixture-mobile')
                 with self.assertRaisesRegex(auth.AuthError,'LOGIN_PROTOCOL_KEY'):

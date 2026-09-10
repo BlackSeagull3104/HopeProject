@@ -18,6 +18,7 @@ def main():
     with tempfile.TemporaryDirectory() as folder:
         env = {k: v for k, v in os.environ.items() if k not in ('PYTHONPATH', 'SEND_CODE_PROTOCOL_KEY', 'LOGIN_PROTOCOL_KEY')}
         env['HOPE_ARCHIVE_HOME'] = str(Path(folder) / 'profile')
+        env['LOCALAPPDATA'] = folder  # Never read the real user's desktop config.
         process = subprocess.Popen([str(executable)], stdin=subprocess.PIPE, stdout=subprocess.PIPE,
             stderr=subprocess.PIPE, text=True, encoding='utf-8', cwd=folder, env=env,
             creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0))
@@ -39,18 +40,11 @@ def main():
             except HTTPError as exc:
                 assert exc.code == 403
                 exc.close()
-            request = Request(base + '/auth/login/password', data=json.dumps({'mobile': 'fixture-mobile', 'secret': 'fixture-password'}).encode(),
-                headers={'X-Hope-Desktop': key, 'Content-Type': 'application/json', 'X-Hope-Client': 'react'})
-            try:
-                urlopen(request, timeout=5)
-                raise AssertionError('Missing config should prevent remote login')
-            except HTTPError as exc:
-                assert exc.code == 400
-                assert 'LOGIN_PROTOCOL_KEY' in json.load(exc)['error']
-                exc.close()
+            # Readiness includes validation of both bundled protocol constants.
+            # Do not trigger a real SMS or login request during packaging.
             process.stdin.write('shutdown\n'); process.stdin.flush()
             assert process.wait(timeout=10) == 0
-            print('PASS: frozen backend startup, HTTP, writable profile, missing-config guard, owner isolation and clean shutdown.')
+            print('PASS: frozen backend startup, HTTP, writable profile, bundled protocol readiness, owner isolation and clean shutdown.')
         finally:
             if process.poll() is None:
                 process.kill(); process.wait(timeout=10)

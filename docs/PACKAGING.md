@@ -1,95 +1,78 @@
-# Windows packaging
+# Windows packaging and distribution
 
-当前分发版本：`v0.1.0-dev`，GitHub **pre-release**。Tauri 与 Cargo 内部版本为 `0.1.0`，开发发布标签增加 `-dev`。
+开发预览：`v0.1.1-dev`，Windows x64。内部应用版本 `0.1.1`。
 
 ## 架构
 
-React 的生产构建嵌入 Tauri 2 桌面壳。前端通过受限的 Rust command 调用本地 API，Rust 再连接 Python sidecar 的随机 loopback 端口。开发模式的 Vite `/api` 代理仍用于浏览器开发。
+```text
+React / TypeScript       Python backend
+       ↓ Vite                 ↓ PyInstaller
+React production assets  hope-archive-backend.exe
+       ↓ Tauri / Rust          │
+       Hope Archive desktop ───┘
+                  ↓ NSIS
+          ONE Windows installer
+```
 
-PyInstaller 将 `packaging/backend_entry.py` 和 Python 依赖冻结成独立的 `hope-archive-backend.exe`。桌面进程启动同目录的后端，通过标准输入传递临时所有者密钥；端口通过标准输出返回。密钥不写入命令行、磁盘或前端。退出时通知后端关闭，Windows Job Object 用于回收子进程。真实协议参数不打入产物。
+Tauri 提供原生窗口和嵌入式 React 生产前端；PyInstaller 将 Python 解释器、现有后端及依赖冻结成 sidecar。“Sidecar” 是主程序自动管理的辅助进程：它执行认证、下载、规范化与导出。内部仍是两个 EXE，但用户只安装并启动一个 Hope Archive，不需分别下载或管理后端。
 
-## 普通用户运行
+桌面启动同目录 `hope-archive-backend.exe`，标准输入传递临时所有者密钥，标准输出返回随机 loopback 端口；React 通过受限的 Rust command 调用后端。后端只绑定 `127.0.0.1`，不开放到 LAN。单实例插件避免重复启动后端；退出时通知后端关闭，Windows Job Object 负责超时/异常时的子进程清理。
 
-从 [GitHub Release](https://github.com/BlackSeagull3104/HopeProject/releases/tag/v0.1.0-dev) 下载 ZIP 并完整解压。运行 `Hope Archive.exe`，不要移动或单独分发其中一个 EXE。无需 Python、Node.js、Rust、Cargo 或 Visual Studio Build Tools。
+## 应用配置与用户数据
 
-需要 Windows x64 和 [WebView2 Runtime](https://developer.microsoft.com/en-us/microsoft-edge/webview2/)。这是未签名开发构建；尚未验证全新 Windows 机器上的依赖和启动行为。
+`src/hope_archive/protocol_config.py` 仅包含两个经项目所有者确认可公开分发的应用级协议常量：`SEND_CODE_PROTOCOL_KEY`、`LOGIN_PROTOCOL_KEY`。PyInstaller 自动包含此模块。它们不是用户凭据，也不承诺密码学保密。
 
-## 运行配置
+查找优先级：**显式环境变量 → 开发模式项目根目录 `.env` → 内置应用配置**。桌面模式跳过所有 `.env` 文件（包括旧 `HopeArchive.env` 和 `HopeArchive/.env`），不依赖仓库或当前工作目录。空的显式覆盖会报错；文件按字面 KEY=value 读取，不展开变量，重复键最后一项生效。正常安装无需设置任何协议常量。
 
-默认配置目录：`%LOCALAPPDATA%\HopeArchive`。默认归档目录为其中的 `archives`；导出时可选择其他目录。可通过 `HOPE_ARCHIVE_HOME` 环境变量指定绝对路径作为用户配置目录（这是用户运行时选择，不是构建机固定路径）。
+协议值仅在后端使用，不放入 React/Vite、日志、界面或 API 响应。后端报告就绪之前会验证两个常量可解析。测试通过本地签名生成验证配置，不发送真实短信。
 
-真实登录需要 `SEND_CODE_PROTOCOL_KEY` 和 `LOGIN_PROTOCOL_KEY`。可以设置环境变量，或在用户配置目录创建 `.env`，键名参考仓库 `.env.example`。自行填写从自己参考客户端合法确认的值。不要在文件中添加密码、手机号、验证码或会话令牌；不要上传该文件。ZIP 不附带开发者的配置，因此下载后并不能免配置地完成真实登录。
+用户数据目录仍为 `%LOCALAPPDATA%\HopeArchive`，按需创建；默认归档位于 `archives`。`HOPE_ARCHIVE_HOME` 可覆盖数据目录，不是协议配置目录。原有用户配置文件不会被读取、移动或删除。个人手机号、密码、验证码、token、cookie、session 和日记均不属于应用默认配置；安装器不携带开发者用户状态。
+
+## 安装器
+
+采用 Tauri 官方支持且项目已配置的 NSIS，使用当前用户安装模式，不需要用户安装构建工具。开始菜单入口名为 Hope Archive。安装器包含主程序、Python sidecar 和卸载组件。
+
+运行需要 Windows x64 和 Microsoft WebView2。NSIS 配置使用 `downloadBootstrapper`：系统已有 WebView2 时复用，否则安装时联网下载。安装器未包含离线 WebView2 完整运行时。
+
+参考：[Tauri Windows installer](https://v2.tauri.app/distribute/windows-installer/)。不提供自动更新，本版未签名。
 
 ## 图标
 
-规范主源为 `assets/icons/hope-archive-icon.png`，原始设计不重绘、不裁剪、不改色。原图已原样复制进仓库，原外部文件未移动或删除；构建不依赖外部图标路径。
+规范主源 `assets/icons/hope-archive-icon.png` 保持原设计。跟踪的派生资源位于 `frontend/vite-app/src-tauri/icons/`：`16x16.png`、`32x32.png`、`48x48.png`、`64x64.png`、`128x128.png`、`256x256.png`、`icon.ico`。
 
-`scripts/generate_icons.py` 使用 Pillow 保持正方形比例与透明度，仅作格式转换及缩放，生成并跟踪以下打包资源：
+`tauri.conf.json` 的 `bundle.icon` 引用 PNG/ICO，`bundle.windows.nsis.installerIcon` 引用同一个 ICO；PyInstaller spec 也引用该 ICO。所有路径相对仓库，主源与派生文件跟踪 Git，构建不依赖外部图标文件。
 
-```text
-frontend/vite-app/src-tauri/icons/
-  16x16.png
-  32x32.png
-  48x48.png
-  64x64.png
-  128x128.png
-  256x256.png
-  icon.ico
-```
+## 从源码构建
 
-ICO 包含以上六种尺寸。主源 PNG 和全部七个派生文件提交 Git。`tauri.conf.json` 的 `bundle.icon` 使用相对路径引用 32、128、256 PNG 与 ICO；PyInstaller spec 也使用此 ICO。Tauri 使用该配置作为默认窗口与可执行文件图标。未来安装器亦使用 bundle 配置，但本版本没有生成安装器。
-
-`scripts/verify_executable_icon.py` 已核对两个 EXE 的 PE 图标资源，全部六种图像与规范 ICO 完全一致。资源检查通过不等于已经人工确认任务栏、窗口或 Explorer 的实际显示。
-
-## 从源码复现构建
-
-在 Windows x64 安装 Python 3.10+ x64、支持当前 Vite 的 Node.js（例如 22.12+）、Rust MSVC 工具链、Visual Studio 2022 C++ Build Tools（Desktop development with C++ 和 Windows SDK），以及 WebView2。参考 [Tauri prerequisites](https://v2.tauri.app/start/prerequisites/)。本次使用 Rust 1.98.1、VS Build Tools 17.14.40、PyInstaller 6.22.2。
-
-在仓库根目录执行：
+开发依赖：Python 3.10+ x64、兼容 Vite 的 Node.js、Rust MSVC、VS 2022 Desktop development with C++ 与 Windows SDK。当前验证工具链：Python 3.12.10、PyInstaller 6.22.2、Rust 1.98.1。安装器/运行时下载需要网络。普通用户不需要这些开发工具。
 
 ```powershell
 python -m venv .venv
 .\.venv\Scripts\python.exe -m pip install -r requirements.txt -r packaging/requirements.txt
 npm --prefix frontend/vite-app ci
-.\.venv\Scripts\python.exe -B -X utf8 -m unittest discover -s tests
-npm --prefix frontend/vite-app run typecheck
-npm --prefix frontend/vite-app run lint
-npm --prefix frontend/vite-app run build
 powershell -ExecutionPolicy Bypass -File scripts/build_windows.ps1
-.\.venv\Scripts\python.exe scripts/package_release.py
 ```
 
-`build_windows.ps1` 转换图标、冻结后端、运行隔离后端 smoke test、按 Tauri 约定准备带目标三元组后缀的 sidecar、构建 Tauri x64、组装便携目录并核对图标。Cargo.lock 和 package-lock.json 跟踪依赖解析；Python 的部分依赖仍为范围约束，未承诺逐字节可重复构建。
-
-仅构建后端可传 `-BackendOnly`。React 浏览器开发步骤见 [REACT_LOCAL_API.md](REACT_LOCAL_API.md)。当前便携包是已验证的分发布局；直接使用其他 Tauri dev/bundle 命令的 sidecar 布局尚未验收。
-
-## 产物路径与 ZIP
+脚本按顺序执行图标尺寸转换、PyInstaller、隔离后端 smoke test、sidecar 目标名称准备、React 生产构建、Tauri 编译、NSIS 打包及产物复制。前后端修改后重跑同一命令。`-BackendOnly` 仅用于后端开发；浏览器开发见 [REACT_LOCAL_API.md](REACT_LOCAL_API.md)。Cargo.lock/package-lock.json 固定依赖解析，Python 部分依赖为范围约束，不承诺逐字节一致构建。
 
 ```text
 dist/backend/hope-archive-backend.exe
-frontend/vite-app/src-tauri/binaries/hope-archive-backend-x86_64-pc-windows-msvc.exe
-frontend/vite-app/src-tauri/target/x86_64-pc-windows-msvc/release/hope-archive.exe
-dist/windows/Hope Archive/
-  Hope Archive.exe
-  hope-archive-backend.exe
-dist/releases/Hope-Archive-v0.1.0-dev-windows-x64.zip
+frontend/vite-app/src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/Hope Archive_0.1.1_x64-setup.exe
+dist/releases/Hope-Archive-v0.1.1-dev-windows-x64-setup.exe
 ```
 
-ZIP 严格限定三个条目：`Hope Archive/Hope Archive.exe`、`Hope Archive/hope-archive-backend.exe`、`Hope Archive/README.txt`。打包脚本检查 CRC 和两份 EXE 的 SHA-256，确认 ZIP 与便携目录一致。README 来自 `packaging/DISTRIBUTION_README.txt`。不包含配置、账号数据或归档。发布时将 ZIP 上传 GitHub Releases，禁止将编译 EXE、ZIP、target、dist、构建缓存放进普通 Git 历史。
+`dist/windows/Hope Archive/` 保留本地双 EXE 调试产物；普通用户只下载安装器。EXE、ZIP、target、dist、用户数据和缓存不提交 Git。
 
-## 当前验证与限制
+## 验证与限制
 
-- Python 83 项离线测试、前端 typecheck/lint/production build、PyInstaller 后端构建和 Tauri Windows x64 编译通过。
-- 独立后端在临时工作目录启动、健康检查、所有者隔离、缺失配置拦截和正常退出通过；两个 EXE 的规范图标资源核对通过。
-- 完整原生窗口人工验证未完成。此前一次启动观察到窗口短暂出现后退出，原因未确认；不能声称桌面启动稳定或完整归档流程通过。
-- 尚未验证真实桌面登录、任务栏图标、重新打开、多实例及全部退出情形，也未完成无开发工具的干净 Windows 机器验收。
-- 未签名，无安装器、自动更新或 ARM64/macOS/Linux 支持。`bundle.targets` 中 NSIS 仅为未来配置；当前构建明确使用 `--no-bundle`。
-- Vite 仍报告配置中 `__dirname` 的未来兼容性警告；PNG 可能报告 iCCP 色彩配置警告。未改变应用功能或原始设计以消除警告。
+验证结果另见本版 [Release notes](RELEASE_NOTES_v0.1.1-dev.md)。配置测试与后端 smoke test 不发送短信；真实协议值此前由用户手工验证。完整在线登录和真实日记归档不在本次自动验收范围。未进行无开发工具的全新 Windows VM 测试，也未验证 WebView2 缺失时的安装分支。未签名，无自动更新，只支持 Windows x64。
 
 ## 发布
 
-仅在审核源码与 ZIP 后提交并推送 main。开发版不标记为稳定 latest：
+完成离线测试、安装 smoke test 和隐私审核后，提交并正常推送 main。创建开发预发布并附加一个安装器，禁止上传单独组件作为用户入口：
 
 ```powershell
-gh release create v0.1.0-dev dist/releases/Hope-Archive-v0.1.0-dev-windows-x64.zip --target main --title "Hope Archive v0.1.0-dev — Windows development build" --notes-file docs/RELEASE_NOTES_v0.1.0-dev.md --prerelease
+gh release create v0.1.1-dev dist/releases/Hope-Archive-v0.1.1-dev-windows-x64-setup.exe --target main --title "Hope Archive v0.1.1-dev" --notes-file docs/RELEASE_NOTES_v0.1.1-dev.md --prerelease
 ```
+
+README 链接到对应 Release 页面，不使用仅适用于稳定发布的 latest 链接。发布后核对 tag 提交和附件 SHA-256。

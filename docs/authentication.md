@@ -78,7 +78,7 @@ AuthResult 只保留 user_id、mobile、nickname（datas.nickName）；不复制
 
 ## Security Model
 
-**Protocol constants**：SEND_CODE_PROTOCOL_KEY、LOGIN_PROTOCOL_KEY、endpoint、字段名和 SHA-1 构造顺序，是官方 client compatibility 的组成部分，不是用户账号凭据。按当前发布策略，两个 KEY 的实际值仅存在 gitignored 项目根目录 .env 或进程环境变量中；源码只保留配置名称和签名结构，无内置默认值。常量本身也不能证明请求者的账号身份。
+**Protocol constants**：SEND_CODE_PROTOCOL_KEY、LOGIN_PROTOCOL_KEY、endpoint、字段名和 SHA-1 构造顺序，是官方 client compatibility 的组成部分，不是用户账号凭据。两个确认的应用级常量已包含在后端 protocol_config.py 中并随安装器公开分发；开发模式可用 .env 或环境变量覆盖。常量本身也不能证明请求者的账号身份。
 
 **User secrets / personal data**：真实手机号、password、SMS code、cookie、token、session identifier、deviceToken、完整 User response 和真实抓包数据不得提交。输入只用于运行期间请求，不保存认证响应、日志或 credential 文件。未来如需持久化真实 session，必须设计独立、gitignored 的本地状态存储；本版不实现。
 
@@ -97,6 +97,6 @@ HTTP transport 有显式 timeout，不自动重试或跟随重定向，认证与
 
 ## Local configuration
 
-新安装时将 .env.example 复制为 .env，自行核对参考 client 后填写 SEND_CODE_PROTOCOL_KEY、LOGIN_PROTOCOL_KEY。仓库不提供实际值，配置缺失时登录请求不会发送。
+应用级协议常量已随后端分发，普通用户无需自行查找或配置。开发模式允许环境变量和项目根目录 `.env` 覆盖；桌面模式不读取 `.env`。仅两个确认的协议常量可公开，个人认证数据不可提交。详见 [PACKAGING.md](PACKAGING.md)。
 
 环境变量优先于 .env，包括显式设置为空的情况（会报错）。.env 支持字面 KEY=value、整行注释和匹配的外层引号；不执行 shell、不展开变量、不支持行尾注释。路径固定在项目根目录，不依赖当前工作目录。无新增依赖。

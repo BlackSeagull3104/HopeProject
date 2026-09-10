@@ -1,10 +1,11 @@
 """Package only the reviewed portable runtime and verify the ZIP before release."""
 import hashlib
+import json
 from pathlib import Path
 import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
-TAG = 'v0.1.0-dev'
+TAG = 'v' + json.loads((ROOT / 'frontend/vite-app/src-tauri/tauri.conf.json').read_text())['version'] + '-dev'
 
 
 def main():

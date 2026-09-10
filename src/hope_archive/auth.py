@@ -13,8 +13,20 @@ from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
 from urllib.request import HTTPRedirectHandler, Request, build_opener
 
-# Values are local configuration; no built-in defaults.
+try:
+    from .protocol_config import APPLICATION_PROTOCOL
+except ImportError:  # Existing direct-script entry point.
+    from protocol_config import APPLICATION_PROTOCOL
+
+# Desktop never reads a repository or user .env; development keeps its override.
 AUTH_ENV_FILE = Path(__file__).resolve().parents[2] / '.env'
+AUTH_CONFIG_DESKTOP = False
+
+
+def configure_desktop():
+    global AUTH_CONFIG_DESKTOP
+    AUTH_CONFIG_DESKTOP = True
+
 
 SEND_SECURITY_CODE_ENDPOINT = 'https://hope.wantexe.com/services/checkCodeService/sendCheckCodeV2'
 LOGIN_BY_SECURITY_CODE_ENDPOINT = 'https://hope.wantexe.com/services/v2/user/loginBySecurityCode'
@@ -44,15 +56,21 @@ class AuthResult:
 
 
 def get_protocol_key(name):
-    """Read environment or literal project .env KEY=value lines; no expansion."""
+    """Explicit environment > development-only .env > bundled application value.
+
+    Empty overrides fail closed. File values are literal; last duplicate wins.
+    No user credential can be supplied through the application defaults.
+    """
+    if name not in ('SEND_CODE_PROTOCOL_KEY', 'LOGIN_PROTOCOL_KEY'):
+        raise AuthError('不支持的应用协议配置项。')
+    value = None
     if name in os.environ:
         value = os.environ[name]
-    else:
-        value = None
+    elif not AUTH_CONFIG_DESKTOP:
         try:
             lines = AUTH_ENV_FILE.read_text(encoding='utf-8-sig').splitlines() if AUTH_ENV_FILE.exists() else []
         except (OSError, UnicodeError):
-            raise AuthError('无法读取本地认证配置 .env。') from None
+            raise AuthError('无法读取开发配置 .env。') from None
         for line in lines:
             if not line.strip() or line.lstrip().startswith('#'):
                 continue
@@ -61,10 +79,12 @@ def get_protocol_key(name):
                 value = candidate.strip()
                 if len(value) >= 2 and value[0] == value[-1] and value[0] in (chr(34), chr(39)):
                     value = value[1:-1]
-        if value is None:
-            raise AuthError(f'缺少 {name}，请按 .env.example 配置项目根目录的 .env。')
+    if value is None:
+        value = APPLICATION_PROTOCOL.get(name)
+    if value is None:
+        raise AuthError(f'应用协议配置缺少 {name}，请重新安装完整版本。')
     if not value or not value.strip():
-        raise AuthError(f'{name} 配置为空，请检查本地认证配置。')
+        raise AuthError(f'{name} 配置为空，请检查开发覆盖配置或重新安装完整版本。')
     return value
 
 

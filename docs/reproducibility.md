@@ -88,4 +88,4 @@ key={LOGIN_PROTOCOL_KEY}&mobile={mobile}&password={password}&wxOpenId=
 
 仓库公开的是独立 Python 实现、endpoint/字段信息、配置名称、签名构造和验证步骤；不重新分发官方 APK、完整反编译 Java 类或官方资源。这里描述 where to look / what to verify，没有复制完整官方类。
 
-实际协议 KEY 不随 Git 分发。请在自行取得的参考 client 中核对，再填入 gitignored .env；文中 {SEND_CODE_PROTOCOL_KEY} / {LOGIN_PROTOCOL_KEY} 是配置占位符，不是签名中的字面花括号。测试注入虚构 key，不需要真实本地配置。
+应用级协议常量已随后端分发，普通用户无需自行查找或配置。开发模式允许环境变量和项目根目录 `.env` 覆盖；桌面模式不读取 `.env`。仅两个确认的协议常量可公开，个人认证数据不可提交。详见 [PACKAGING.md](PACKAGING.md)。
