@@ -1,3 +1,5 @@
+import { invoke, isTauri } from "@tauri-apps/api/core"
+
 export type Session = { token: string; userId: string }
 export type Stats = { generated: number; skipped: number; failed: number }
 export type Job = {
@@ -25,6 +27,18 @@ export async function request<T>(
   body?: object,
   session?: Session
 ): Promise<T> {
+  if (isTauri()) {
+    let reply: { status: number; body: T & { error?: string } }
+    try {
+      reply = await invoke("desktop_request", {
+        path, body: body ?? null, token: session?.token ?? null,
+      })
+    } catch {
+      throw new ApiError("桌面后端连接失败，请重新启动 Hope Archive。", 0)
+    }
+    if (reply.status >= 400) throw new ApiError(reply.body.error || "请求失败。", reply.status)
+    return reply.body
+  }
   let response: Response
   try {
     response = await fetch(`/api${path}`, {

@@ -1,11 +1,47 @@
 # Hope Archive
 
-当前原型通过已验证的只读列表接口导出当前用户自己的日记。项目使用 Python 3.10+。Markdown 图片排版使用 Pillow 读取尺寸；运行前执行 `.\.venv\Scripts\python.exe -m pip install -r requirements.txt`。Downloader 和 Normalization 仍使用标准库。
+Hope Archive 是一个将自己日记导出为本地归档和 Markdown 的桌面软件原型。
+
+## Download
+
+**Windows x64**
+
+[**Download Hope Archive for Windows**](https://github.com/BlackSeagull3104/HopeProject/releases/tag/v0.1.0-dev)
+
+Current status: **Development / Pre-release** (`v0.1.0-dev`)
+
+### 普通用户：下载与运行
+
+1. 打开上方 GitHub Release，下载 `Hope-Archive-v0.1.0-dev-windows-x64.zip`。
+2. 完整解压 ZIP；不要在压缩包内直接运行。
+3. 进入 `Hope Archive` 文件夹，运行 `Hope Archive.exe`。必须保留同目录的 `hope-archive-backend.exe`。
+
+运行打包版本不需要安装 Python、Node.js、Rust、Cargo 或 Visual Studio Build Tools。需要 Windows x64 和 [Microsoft WebView2 Runtime](https://developer.microsoft.com/en-us/microsoft-edge/webview2/)；Windows 通常已预装。
+
+这是供开发验证的未签名版本，不代表稳定发布。原生窗口完整人工验证尚未完成；此前一次启动观察到窗口短暂出现后退出，原因尚未确认。真实账号登录和完整桌面归档流程也尚未验收。
+
+安装包不含开发者账号、会话或协议密钥。真实登录仍需自行提供合法取得的协议参数，配置方法见 [打包与运行说明](docs/PACKAGING.md#运行配置)。默认用户配置和归档位于 `%LOCALAPPDATA%\HopeArchive`，可在应用中选择导出位置；仅操作你自己的日记。
+
+## 开发者：从源码运行与构建
+
+以下内容面向开发者。普通用户只需使用上方下载包。
+
+```powershell
+git clone https://github.com/BlackSeagull3104/HopeProject.git
+cd HopeProject
+python -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt
+npm --prefix frontend/vite-app ci
+```
+
+React 本地开发见 [本地 API 与前端](docs/REACT_LOCAL_API.md)。Windows 桌面源码构建、构建工具及产物布局见 [PACKAGING.md](docs/PACKAGING.md)。
+
+Python 后端需要 Python 3.10+。Markdown 图片排版使用 Pillow；Downloader 和 Normalization 使用标准库。
 
 ## 运行（Windows PowerShell）
 
 ```powershell
-Set-Location 'D:\AUniversityLearning\3102\CODING\HopeProject'
+# 在仓库根目录执行
 .\.venv\Scripts\python.exe src\hope_archive\main.py --user-id 'YOUR_BACKEND_USER_ID' --begin-date '2026-01-01' --end-date '2026-09-08'
 ```
 

@@ -76,3 +76,8 @@ node_modules/
 # Private local directories and token stores
 private/
 tokens*.json
+
+# Desktop packaging build output
+/frontend/vite-app/src-tauri/target/
+/frontend/vite-app/src-tauri/gen/
+/frontend/vite-app/src-tauri/binaries/*.exe
