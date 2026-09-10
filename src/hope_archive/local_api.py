@@ -10,7 +10,7 @@ import threading
 import time
 
 from . import application, auth
-from .export_markdown import export_diaries
+from .export_documents import ExportFormat, export_document
 
 PROJECT = Path(__file__).resolve().parents[2]
 ORIGINS = {'http://localhost:5173', 'http://127.0.0.1:5173'}
@@ -66,8 +66,9 @@ class LocalService:
             token = secrets.token_urlsafe(32)
             with self.lock:
                 self.sessions = {k: v for k, v in self.sessions.items() if v['expires'] > time.monotonic()}
-                self.sessions[token] = {'userId': user.user_id, 'expires': time.monotonic() + 12 * 3600}
-            return {'token': token, 'userId': user.user_id}
+                nickname = user.nickname.strip() if isinstance(user.nickname, str) else ''
+                self.sessions[token] = {'userId': user.user_id, 'displayName': nickname or 'Hope 用户', 'expires': time.monotonic() + 12 * 3600}
+            return {'token': token, 'userId': user.user_id, 'displayName': nickname or 'Hope 用户'}
         except auth.AuthError as exc:
             # Never return untrusted server messages or the raw response.
             raise RequestError(400, str(exc)) from None
@@ -81,7 +82,13 @@ class LocalService:
             fields(body, ['beginDate', 'endDate', 'outputDir'])
             application.validate_request(user['userId'], body['beginDate'], body['endDate'], 0, body['outputDir'])
         else:
-            fields(body, ['inputPath', 'archiveDir'], ['outputDir'])
+            fields(body, ['inputPath', 'archiveDir'], ['outputDir', 'format', 'beginDate', 'endDate'])
+            try:
+                ExportFormat(body.get('format', 'markdown'))
+            except (ValueError, TypeError):
+                raise RequestError(400, '不支持的导出格式。') from None
+            if 'beginDate' in body or 'endDate' in body:
+                application.validate_date_range(body.get('beginDate'), body.get('endDate'))
             if 'outputDir' in body and not isinstance(body['outputDir'], str):
                 raise RequestError(400, '导出目录格式无效。')
         with self.lock:
@@ -108,7 +115,8 @@ class LocalService:
                            'media': result.media, 'markdown': result.markdown}
                 complete = result.complete
             else:
-                self.update(job_id, stage='正在生成 Markdown…')
+                format = body.get('format', 'markdown')
+                self.update(job_id, stage='正在生成导出文件…')
                 document = json.loads(Path(body['inputPath']).expanduser().read_text(encoding='utf-8-sig'))
                 if not isinstance(document, dict) or not isinstance(document.get('diaries'), list):
                     raise ValueError('Invalid normalized document')
@@ -123,8 +131,16 @@ class LocalService:
                 manifest_path = archive / 'media_manifest.json'
                 manifest = json.loads(manifest_path.read_text(encoding='utf-8')) if manifest_path.exists() else {}
                 output = Path(body['outputDir']).expanduser().resolve() if body.get('outputDir', '').strip() else archive
-                stats = export_diaries(document, manifest, archive, output)
-                summary = {'outputDir': str(output), 'diaryCount': len(document['diaries']), 'markdown': stats}
+                if output.exists() and not output.is_dir():
+                    raise RequestError(400, '输出路径必须是文件夹。')
+                if 'beginDate' in body:
+                    begin, end = application.validate_date_range(body['beginDate'], body['endDate'])
+                    document = dict(document, diaries=[d for d in document['diaries']
+                        if begin.isoformat() <= (d.get('note_date') or '')[:10] <= end.isoformat()])
+                stats = export_document(document, manifest, archive, output, format)
+                summary = {'outputDir': str(output), 'diaryCount': len(document['diaries']), 'export': stats, 'format': format}
+                if format == 'markdown':
+                    summary['markdown'] = stats
                 complete = stats['failed'] == 0
             self.update(job_id, state='completed' if complete else 'partial',
                         stage='已完成' if complete else '部分完成，请检查失败数量。', result=summary)
@@ -145,7 +161,7 @@ class LocalService:
             with self.lock:
                 self.sessions.pop(token, None)
             return {'success': True}
-        if method == 'POST' and path in ('/archive/download', '/export/markdown'):
+        if method == 'POST' and path in ('/archive/download', '/export/markdown', '/export/document'):
             return self.start('archive' if path == '/archive/download' else 'export', body, token)
         if method == 'GET' and path.startswith('/jobs/'):
             with self.lock:

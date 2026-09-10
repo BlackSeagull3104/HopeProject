@@ -168,6 +168,7 @@ async fn desktop_request(
                 | "/auth/logout"
                 | "/archive/download"
                 | "/export/markdown"
+                | "/export/document"
         )
     } else {
         path == "/health"
@@ -219,6 +220,7 @@ async fn desktop_request(
 
 fn main() {
     let result = tauri::Builder::default()
+        .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_single_instance::init(|app, _, _| {
             if let Some(window) = app.get_webview_window("main") {
                 let _ = window.set_focus();

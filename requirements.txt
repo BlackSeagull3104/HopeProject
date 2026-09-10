@@ -3,3 +3,7 @@ Pillow>=10.0,<13
 
 # Tkinter calendar cells, navigation and disabled-date styling.
 tkcalendar==1.6.1
+
+# Local document export (no external service).
+python-docx==1.2.0
+reportlab==4.4.10

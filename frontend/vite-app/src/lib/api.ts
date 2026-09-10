@@ -1,6 +1,6 @@
 import { invoke, isTauri } from "@tauri-apps/api/core"
 
-export type Session = { token: string; userId: string }
+export type Session = { token: string; userId: string; displayName?: string }
 export type Stats = { generated: number; skipped: number; failed: number }
 export type Job = {
   state: "running" | "completed" | "partial" | "failed"
@@ -9,7 +9,9 @@ export type Job = {
   result?: {
     outputDir: string
     diaryCount: number
-    markdown: Stats
+    markdown?: Stats
+    export?: Stats
+    format?: string
     media?: { downloaded: number; skipped: number; failed: number }
   }
 }
@@ -31,12 +33,15 @@ export async function request<T>(
     let reply: { status: number; body: T & { error?: string } }
     try {
       reply = await invoke("desktop_request", {
-        path, body: body ?? null, token: session?.token ?? null,
+        path,
+        body: body ?? null,
+        token: session?.token ?? null,
       })
     } catch {
       throw new ApiError("桌面后端连接失败，请重新启动 Hope Archive。", 0)
     }
-    if (reply.status >= 400) throw new ApiError(reply.body.error || "请求失败。", reply.status)
+    if (reply.status >= 400)
+      throw new ApiError(reply.body.error || "请求失败。", reply.status)
     return reply.body
   }
   let response: Response

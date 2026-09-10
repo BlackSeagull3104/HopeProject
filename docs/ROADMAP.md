@@ -913,3 +913,15 @@ Implementation
 The core value of Hope Archive is the reliable **ownership, preservation, browsing, search, and export of personal archive data**.
 
 AI should enhance that archive—not become a dependency of it.
+
+## 2026-09-10 — Export/UI implementation increment
+
+- [x] Four-format export API and typed frontend choices (Markdown/TeX/PDF/DOCX).
+- [x] Shared date validation: start <= end <= today; past end dates selectable.
+- [x] Session display name from the existing authentication nickname, with safe fallback.
+- [x] Native folder dialog integration and browser-mode fallback; Tauri compilation verified.
+- [x] Synthetic export/API/date/image regression tests and PDF page rendering checks.
+- [ ] Manual native folder selection/cancellation and full four-format UI workflow acceptance.
+- [ ] Word reader layout acceptance across target environments.
+
+This is a source implementation milestone, not a new GitHub release or completion of all scheduled export/release requirements. See docs/EXPORTS.md for verification boundaries.

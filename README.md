@@ -23,6 +23,7 @@
 
 - 通过现有短信/密码认证流程登录自己的账号。
 - 下载自己的日记与媒体，整理为本地 Markdown。
+- 当前 main 源码新增 Markdown、TeX、PDF、Word 导出、目录选择和昵称显示，见 [导出说明](docs/EXPORTS.md)。上方已发布安装器尚未包含本轮改动。
 - React 桌面界面与自动管理的 Python 后端。
 
 ## Usage

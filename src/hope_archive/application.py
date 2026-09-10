@@ -34,9 +34,7 @@ class ArchiveResult:
         return self.media['failed'] == 0 and self.markdown['failed'] == 0
 
 
-def validate_request(user_id, begin_date, end_date, note_type, output_dir):
-    if not isinstance(user_id, str) or not user_id.strip():
-        raise ArchiveError('请填写你本人的 User ID。')
+def validate_date_range(begin_date, end_date):
     for value in (begin_date, end_date):
         if not isinstance(value, str) or not re.fullmatch(r'\d{4}-\d{2}-\d{2}', value):
             raise ArchiveError('日期格式应为 YYYY-MM-DD。')
@@ -51,6 +49,13 @@ def validate_request(user_id, begin_date, end_date, note_type, output_dir):
         raise ArchiveError('结束日期不能晚于今天。')
     if begin > end:
         raise ArchiveError('开始日期不能晚于结束日期。')
+    return begin, end
+
+
+def validate_request(user_id, begin_date, end_date, note_type, output_dir):
+    if not isinstance(user_id, str) or not user_id.strip():
+        raise ArchiveError('请填写你本人的 User ID。')
+    validate_date_range(begin_date, end_date)
     if type(note_type) is not int or note_type not in NOTE_TYPE_OPTIONS.values():
         raise ArchiveError('暂不支持所选日记类型。')
     if output_dir is None or not str(output_dir).strip():

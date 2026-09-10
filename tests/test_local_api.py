@@ -142,6 +142,40 @@ class LocalAPITests(unittest.TestCase):
         _, result = self.call('/export/markdown', body)
         self.assertEqual(self.wait_job(result['jobId'])['state'], 'failed')
 
+    def test_nickname_from_both_login_methods_and_missing_fallback(self):
+        for mode in ('code', 'password'):
+            for nickname in ('合成昵称', None):
+                user = auth.AuthResult('42', nickname=nickname)
+                method = 'login_by_security_code' if mode == 'code' else 'login_by_password'
+                with patch.object(auth, method, return_value=user):
+                    status, result = self.call('/auth/login/' + mode, {'mobile': 'fixture-mobile', 'secret': 'fixture-secret'})
+                self.assertEqual(status, 200)
+                self.assertEqual(result['displayName'], nickname or 'Hope 用户')
+                self.assertEqual(self.server.service.sessions[result['token']]['displayName'], result['displayName'])
+                self.assertNotIn('fixture-mobile', json.dumps(result))
+
+    def test_export_formats_filter_and_validation(self):
+        self.login()
+        path = Path(self.root.name) / 'fixture.json'
+        path.write_text(json.dumps({'diaries': [
+            {'id': 1, 'note_date': '2024-01-01', 'original_text': 'synthetic selected'},
+            {'id': 2, 'note_date': '2024-01-02', 'original_text': 'synthetic excluded'}]}))
+        body = {'inputPath': str(path), 'archiveDir': self.root.name, 'beginDate': '2024-01-01', 'endDate': '2024-01-01'}
+        for format in ('markdown', 'tex', 'pdf', 'docx'):
+            body.update(format=format, outputDir=str(Path(self.root.name) / format))
+            status, response = self.call('/export/document', body)
+            self.assertEqual(status, 200)
+            job = self.wait_job(response['jobId'])
+            self.assertEqual(job['state'], 'completed')
+            self.assertEqual(job['result']['diaryCount'], 1)
+            self.assertEqual(job['result']['format'], format)
+        body['format'] = 'invalid'
+        self.assertEqual(self.call('/export/document', body)[0], 400)
+        body.update(format='markdown', endDate='9999-01-01')
+        self.assertEqual(self.call('/export/document', body)[0], 400)
+        body.update(endDate='2023-12-31')
+        self.assertEqual(self.call('/export/document', body)[0], 400)
+
 
 if __name__ == '__main__':
     unittest.main()

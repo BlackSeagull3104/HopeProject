@@ -8,6 +8,13 @@ import {
 import { Archive, FileText, LogOut } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { ApiError, request, type Job, type Session } from "@/lib/api"
+import {
+  EXPORT_FORMATS,
+  dateRangeError,
+  pickDirectory,
+  todayString,
+  type ExportFormat,
+} from "@/lib/export"
 
 function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
@@ -19,10 +26,6 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
 }
 const inputClass =
   "h-10 min-w-0 w-full rounded-lg border border-input bg-background px-3 text-sm shadow-xs outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
-function todayString() {
-  const now = new Date()
-  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`
-}
 
 export function App() {
   const [session, setSession] = useState<Session | null>(null)
@@ -38,6 +41,7 @@ export function App() {
   const [inputPath, setInputPath] = useState("")
   const [archiveDir, setArchiveDir] = useState("")
   const [exportDir, setExportDir] = useState("")
+  const [exportFormat, setExportFormat] = useState<ExportFormat>("markdown")
   const [health, setHealth] = useState("正在连接本地服务…")
   const [message, setMessage] = useState("")
   const [error, setError] = useState("")
@@ -150,12 +154,21 @@ export function App() {
   function start(event: FormEvent) {
     event.preventDefault()
     void action(async () => {
+      const validation = dateRangeError(beginDate, endDate)
+      if (validation) throw new Error(validation)
       const body =
         page === "archive"
           ? { beginDate, endDate, outputDir }
-          : { inputPath, archiveDir, outputDir: exportDir }
+          : {
+              inputPath,
+              archiveDir,
+              outputDir: exportDir,
+              format: exportFormat,
+              beginDate,
+              endDate,
+            }
       const data = await request<{ jobId: string }>(
-        page === "archive" ? "/archive/download" : "/export/markdown",
+        page === "archive" ? "/archive/download" : "/export/document",
         body,
         session!
       )
@@ -301,12 +314,12 @@ export function App() {
               onClick={() => setPage(value)}
             >
               {value === "archive" ? <Archive /> : <FileText />}
-              {value === "archive" ? "下载归档" : "Markdown 导出"}
+              {value === "archive" ? "下载归档" : "导出"}
             </Button>
           ))}
         </nav>
         <p className="mt-auto pt-10 text-xs leading-6 text-muted-foreground">
-          已登录
+          已登录：{session.displayName?.trim() || "Hope 用户"}
           <br />
           登录身份自动用于归档
         </p>
@@ -314,7 +327,7 @@ export function App() {
       <div>
         <header className="flex items-center justify-between border-b px-10 py-5">
           <span className="text-sm text-muted-foreground">
-            个人档案 / {page === "archive" ? "下载归档" : "Markdown 导出"}
+            个人档案 / {page === "archive" ? "下载归档" : "导出"}
           </span>
           <Button
             variant="ghost"
@@ -337,52 +350,65 @@ export function App() {
         <main className="mx-auto max-w-5xl space-y-7 p-8 lg:p-12">
           <div>
             <h2 className="text-3xl font-semibold">
-              {page === "archive" ? "下载归档" : "Markdown 导出"}
+              {page === "archive" ? "下载归档" : "导出"}
             </h2>
             <p className="mt-3 text-sm leading-6 text-muted-foreground">
               {page === "archive"
                 ? "选择日期范围，将日记、媒体和 Markdown 保存到电脑。"
-                : "使用已下载的标准化日记导出 Markdown，无需重新下载。"}
+                : "使用已下载的标准化日记，按日期导出所选格式，无需重新下载。"}
             </p>
           </div>
           <section className="rounded-xl border bg-card p-7 shadow-xs">
             <form onSubmit={start}>
               <fieldset disabled={running} className="min-w-0 space-y-6">
+                <div className="grid gap-6 sm:grid-cols-2">
+                  <Field label="开始日期">
+                    <input
+                      className={inputClass}
+                      type="date"
+                      required
+                      max={endDate < todayString() ? endDate : todayString()}
+                      value={beginDate}
+                      onChange={(e) => setBeginDate(e.target.value)}
+                    />
+                  </Field>
+                  <Field label="结束日期">
+                    <input
+                      className={inputClass}
+                      type="date"
+                      required
+                      min={beginDate}
+                      max={todayString()}
+                      value={endDate}
+                      onChange={(e) => setEndDate(e.target.value)}
+                    />
+                  </Field>
+                </div>
                 {page === "archive" ? (
                   <>
-                    <div className="grid gap-6 sm:grid-cols-2">
-                      <Field label="开始日期">
-                        <input
-                          className={inputClass}
-                          type="date"
-                          required
-                          max={
-                            endDate < todayString() ? endDate : todayString()
-                          }
-                          value={beginDate}
-                          onChange={(e) => setBeginDate(e.target.value)}
-                        />
-                      </Field>
-                      <Field label="结束日期">
-                        <input
-                          className={inputClass}
-                          type="date"
-                          required
-                          min={beginDate}
-                          max={todayString()}
-                          value={endDate}
-                          onChange={(e) => setEndDate(e.target.value)}
-                        />
-                      </Field>
-                    </div>
                     <Field label="归档根目录">
-                      <input
-                        className={inputClass}
-                        required
-                        value={outputDir}
-                        onChange={(e) => setOutputDir(e.target.value)}
-                        placeholder="输入本机文件夹的完整路径"
-                      />
+                      <div className="flex items-center gap-2">
+                        <input
+                          className={inputClass}
+                          required
+                          value={outputDir}
+                          onChange={(e) => setOutputDir(e.target.value)}
+                          placeholder="输入本机文件夹的完整路径"
+                        />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          aria-label="选择输出文件夹"
+                          onClick={() =>
+                            void action(async () => {
+                              const selected = await pickDirectory(outputDir)
+                              if (selected !== null) setOutputDir(selected)
+                            })
+                          }
+                        >
+                          ...
+                        </Button>
+                      </div>
                     </Field>
                     <p className="text-sm leading-6 text-muted-foreground">
                       每次创建独立的 hope-archive-* 文件夹。自动下载媒体并生成
@@ -411,13 +437,43 @@ export function App() {
                         placeholder="包含 media_manifest.json 的 archive 文件夹"
                       />
                     </Field>
-                    <Field label="Markdown 输出目录（可选）">
-                      <input
+                    <Field label="导出格式">
+                      <select
                         className={inputClass}
-                        value={exportDir}
-                        onChange={(e) => setExportDir(e.target.value)}
-                        placeholder="留空则保存到媒体归档目录"
-                      />
+                        value={exportFormat}
+                        onChange={(e) =>
+                          setExportFormat(e.target.value as ExportFormat)
+                        }
+                      >
+                        {EXPORT_FORMATS.map((format) => (
+                          <option key={format.value} value={format.value}>
+                            {format.label}
+                          </option>
+                        ))}
+                      </select>
+                    </Field>
+                    <Field label="输出目录（可选）">
+                      <div className="flex items-center gap-2">
+                        <input
+                          className={inputClass}
+                          value={exportDir}
+                          onChange={(e) => setExportDir(e.target.value)}
+                          placeholder="留空则保存到媒体归档目录"
+                        />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          aria-label="选择输出文件夹"
+                          onClick={() =>
+                            void action(async () => {
+                              const selected = await pickDirectory(exportDir)
+                              if (selected !== null) setExportDir(selected)
+                            })
+                          }
+                        >
+                          ...
+                        </Button>
+                      </div>
                     </Field>
                     <p className="text-sm leading-6 text-muted-foreground">
                       相同文件自动跳过，不覆盖内容不同的文件。媒体保留原位置。
@@ -431,7 +487,7 @@ export function App() {
                     ? "任务进行中…"
                     : page === "archive"
                       ? "下载归档"
-                      : "生成 Markdown"}
+                      : "生成导出文件"}
                 </Button>
               </fieldset>
             </form>
@@ -453,9 +509,12 @@ export function App() {
                   <div className="grid gap-4 text-sm sm:grid-cols-3">
                     <p>日记：{job.result.diaryCount} 篇</p>
                     <p>
-                      Markdown：{job.result.markdown.generated} 新建 /{" "}
-                      {job.result.markdown.skipped} 跳过 /{" "}
-                      {job.result.markdown.failed} 失败
+                      {job.result.format || "markdown"}：
+                      {(job.result.export || job.result.markdown)?.generated}{" "}
+                      新建 /{" "}
+                      {(job.result.export || job.result.markdown)?.skipped} 跳过
+                      / {(job.result.export || job.result.markdown)?.failed}{" "}
+                      失败
                     </p>
                     {job.result.media && (
                       <p>

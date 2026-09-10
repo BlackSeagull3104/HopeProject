@@ -76,3 +76,7 @@ gh release create v0.1.1-dev dist/releases/Hope-Archive-v0.1.1-dev-windows-x64-s
 ```
 
 README 链接到对应 Release 页面，不使用仅适用于稳定发布的 latest 链接。发布后核对 tag 提交和附件 SHA-256。
+
+## main 源码中的导出增量
+
+本轮增加 python-docx、ReportLab 和 Tauri dialog 插件（仅开放 dialog:allow-open），构建流程保持不变。PDF 在 Windows 使用系统宋体，不把 Windows 字体文件放进安装器。TeX 导出只生成源码与图片，用户自行安装 XeLaTeX 编译。构建出的本地安装器不等于更新 GitHub Release；本轮不发布新版本。详见 [EXPORTS.md](EXPORTS.md)。
