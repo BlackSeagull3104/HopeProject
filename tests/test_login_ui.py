@@ -5,6 +5,7 @@ from pathlib import Path
 import sys
 import tkinter as tk
 import unittest
+import gc
 from unittest.mock import Mock, patch
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'src'))
 from hope_archive import auth
@@ -12,6 +13,19 @@ from hope_archive.login_ui import LoginWindow
 
 
 class LoginUITests(unittest.TestCase):
+    def clean_window(self):
+        # Tk variables must be finalized on the creating thread, not by the next worker's GC.
+        worker = getattr(self.window, 'worker_thread', None)
+        if worker is not None:
+            worker.join(timeout=5)
+        poll = getattr(self.window, 'poll_id', None)
+        if poll is not None:
+            self.root.after_cancel(poll)
+        self.root.destroy()
+        self.window = None
+        self.root = None
+        gc.collect()
+
     def setUp(self):
         config = patch.dict(auth.os.environ, {'SEND_CODE_PROTOCOL_KEY':'fixture-send-key', 'LOGIN_PROTOCOL_KEY':'fixture-login-key'})
         config.start()
@@ -22,7 +36,7 @@ class LoginUITests(unittest.TestCase):
         self.root.withdraw()
         self.callback=Mock()
         self.window=LoginWindow(self.root,self.callback)
-        self.addCleanup(self.root.destroy)
+        self.addCleanup(self.clean_window)
         self.window.mobile.set('fixture-mobile')
 
     def finish(self):

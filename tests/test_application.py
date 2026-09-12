@@ -29,7 +29,7 @@ class ApplicationTests(unittest.TestCase):
     def test_invalid_inputs_before_any_network_or_output(self):
         for user,begin,end,note,root in [('', '2026-09-01','2026-09-08',0,self.root),
             ('x','2026-09-09','2026-09-01',0,self.root), ('x','20260901','2026-09-08',0,self.root),
-            ('x','2026-02-30','2026-09-08',0,self.root),('x','2026-09-01','2026-09-08',2,self.root),
+            ('x','2026-02-30','2026-09-08',0,self.root),('x','2026-09-01','2026-09-08',99,self.root),
             ('x','2026-09-01','2026-09-08',0,'')]:
             with self.assertRaises(ArchiveError): export_archive(user,begin,end,note,root)
         self.api.assert_not_called(); self.assertEqual(list(self.root.iterdir()), [])

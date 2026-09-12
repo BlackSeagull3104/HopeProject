@@ -4,6 +4,7 @@ from pathlib import Path
 import sys
 import tkinter as tk
 import unittest
+import gc
 from unittest.mock import patch
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'src'))
 from hope_archive.ui import ArchiveWindow
@@ -12,12 +13,25 @@ from hope_archive.application import ArchiveError, ArchiveResult
 
 
 class UITests(unittest.TestCase):
+    def clean_window(self):
+        # Tk variables must be finalized on the creating thread, not by the next worker's GC.
+        worker = getattr(self.window, 'worker_thread', None)
+        if worker is not None:
+            worker.join(timeout=5)
+        poll = getattr(self.window, 'poll_id', None)
+        if poll is not None:
+            self.root.after_cancel(poll)
+        self.root.destroy()
+        self.window = None
+        self.root = None
+        gc.collect()
+
     def setUp(self):
         try: self.root = tk.Tk()
         except tk.TclError as exc: self.skipTest(f'Tk display unavailable: {exc}')
         self.root.withdraw()
         self.window = ArchiveWindow(self.root, AuthResult('fixture-user'))
-        self.addCleanup(self.root.destroy)
+        self.addCleanup(self.clean_window)
 
     def test_background_result_and_duplicate_click_guard(self):
         result=ArchiveResult(Path('fixture-output'),1,{'unique_references':0,'downloaded':0,'skipped':0,'failed':0}, {'generated':1,'skipped':0,'failed':0})

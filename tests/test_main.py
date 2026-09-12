@@ -41,7 +41,7 @@ class CLITests(unittest.TestCase):
     def test_invalid_note_type_before_service(self):
         with patch.object(application, 'export_archive') as service:
             with self.assertRaises(SystemExit) as caught:
-                self.invoke(['--note-type', '2'])
+                self.invoke(['--note-type', '99'])
         self.assertEqual(caught.exception.code, 2)
         service.assert_not_called()
 

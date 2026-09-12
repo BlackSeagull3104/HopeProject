@@ -142,6 +142,33 @@ class LocalAPITests(unittest.TestCase):
         _, result = self.call('/export/markdown', body)
         self.assertEqual(self.wait_job(result['jobId'])['state'], 'failed')
 
+    def test_diary_semantic_filters_reach_transport_and_old_export(self):
+        self.login()
+        for category, raw in [('all', 0), ('capsule_diary', -1), ('gratitude_diary', 1), ('discovery_diary', 2)]:
+            with patch('hope_archive.api.urlopen', return_value=io.BytesIO(json.dumps({'datas': {'total': 0, 'list': []}}).encode())) as transport:
+                status, job = self.call('/archive/download', {'beginDate':'2024-01-01', 'endDate':'2024-01-02', 'outputDir':self.root.name, 'diaryType':category})
+                self.assertEqual(status, 200)
+                self.assertEqual(self.wait_job(job['jobId'])['state'], 'completed')
+                self.assertEqual(json.loads(transport.call_args.args[0].data)['noteType'], raw)
+        self.assertEqual(self.call('/archive/download', {'beginDate':'2024-01-01', 'endDate':'2024-01-02', 'outputDir':self.root.name, 'diaryType':'invalid'})[0], 400)
+        path = Path(self.root.name) / 'old-normalized.json'
+        path.write_text(json.dumps({'diaries':[{'id':1,'note_date':'2024-01-01','metadata':{'note_type':0}}, {'id':2,'note_date':'2024-01-01','metadata':{'note_type':2}}]}))
+        status, job = self.call('/export/document', {'inputPath':str(path), 'archiveDir':self.root.name, 'diaryType':'capsule_diary'})
+        self.assertEqual(status, 200)
+        self.assertEqual(self.wait_job(job['jobId'])['result']['diaryCount'], 1)
+
+    def test_capsule_http_workflow(self):
+        self.login()
+        item = {'id':'synthetic-capsule','openStatus':2,'user':{'id':42}, 'hopeInfo':'synthetic content'}
+        with patch('hope_archive.capsules.urlopen', side_effect=[io.BytesIO(json.dumps({'status':1,'datas':{'datas':[item],'totalCount':1}}).encode()), io.BytesIO(json.dumps({'status':1,'datas':item}).encode())]):
+            status, page = self.call('/capsules/list', {'status':'opened', 'outputDir':self.root.name})
+            self.assertEqual(status, 200)
+            self.assertEqual(page['items'][0]['id'], item['id'])
+            status, detail = self.call('/capsules/detail', {'id':item['id']})
+            self.assertEqual(status, 200)
+            self.assertEqual(detail['content'], 'synthetic content')
+        self.assertEqual(self.call('/capsules/detail', {'id':'not-in-list'})[0], 400)
+
     def test_nickname_from_both_login_methods_and_missing_fallback(self):
         for mode in ('code', 'password'):
             for nickname in ('合成昵称', None):

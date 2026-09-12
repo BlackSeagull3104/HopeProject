@@ -9,7 +9,8 @@ import secrets
 import threading
 import time
 
-from . import application, auth
+from . import application, auth, capsules
+from .diary_types import filter_value, DiaryType, normalized_type
 from .export_documents import ExportFormat, export_document
 
 PROJECT = Path(__file__).resolve().parents[2]
@@ -79,10 +80,11 @@ class LocalService:
     def start(self, kind, body, token):
         user = self.session(token)
         if kind == 'archive':
-            fields(body, ['beginDate', 'endDate', 'outputDir'])
-            application.validate_request(user['userId'], body['beginDate'], body['endDate'], 0, body['outputDir'])
+            fields(body, ['beginDate', 'endDate', 'outputDir'], ['diaryType'])
+            application.validate_request(user['userId'], body['beginDate'], body['endDate'], filter_value(body.get('diaryType', 'all')), body['outputDir'])
         else:
-            fields(body, ['inputPath', 'archiveDir'], ['outputDir', 'format', 'beginDate', 'endDate'])
+            fields(body, ['inputPath', 'archiveDir'], ['outputDir', 'format', 'beginDate', 'endDate', 'diaryType'])
+            DiaryType(body.get('diaryType', 'all'))
             try:
                 ExportFormat(body.get('format', 'markdown'))
             except (ValueError, TypeError):
@@ -109,7 +111,7 @@ class LocalService:
     def run(self, job_id, kind, body, user_id):
         try:
             if kind == 'archive':
-                result = application.export_archive(user_id, body['beginDate'], body['endDate'], 0,
+                result = application.export_archive(user_id, body['beginDate'], body['endDate'], filter_value(body.get('diaryType', 'all')),
                     body['outputDir'], on_progress=lambda stage: self.update(job_id, stage=stage))
                 summary = {'outputDir': str(result.output_dir), 'diaryCount': result.diary_count,
                            'media': result.media, 'markdown': result.markdown}
@@ -137,6 +139,9 @@ class LocalService:
                     begin, end = application.validate_date_range(body['beginDate'], body['endDate'])
                     document = dict(document, diaries=[d for d in document['diaries']
                         if begin.isoformat() <= (d.get('note_date') or '')[:10] <= end.isoformat()])
+                category = body.get('diaryType', 'all')
+                if category != 'all':
+                    document = dict(document, diaries=[d for d in document['diaries'] if normalized_type(d) == category])
                 stats = export_document(document, manifest, archive, output, format)
                 summary = {'outputDir': str(output), 'diaryCount': len(document['diaries']), 'export': stats, 'format': format}
                 if format == 'markdown':
@@ -151,12 +156,52 @@ class LocalService:
         except Exception:
             self.update(job_id, state='failed', stage='处理失败，请检查文件格式、路径和目录权限；已有文件保留。')
 
+    def capsule_request(self, path, body, token):
+        user = self.session(token)
+        if path == '/capsules/list':
+            fields(body, ['status', 'outputDir'], ['offset'])
+            capsules.CapsuleStatus(body['status'])
+            offset = body.get('offset', 0)
+            if type(offset) is not int or offset < 0:
+                raise RequestError(400, '分页位置无效。')
+        elif path == '/capsules/detail':
+            fields(body, ['id'])
+        else:
+            fields(body, ['id', 'key'])
+        with self.lock:
+            if user.get('capsule_busy'):
+                raise RequestError(409, '时间胶囊请求进行中，请等待。')
+            user['capsule_busy'] = True
+        try:
+            archive = user.get('capsule_archive')
+            if path == '/capsules/list':
+                if archive is None:
+                    if offset:
+                        raise RequestError(400, '请先加载第一页。')
+                    archive = capsules.CapsuleArchive(user['userId'], body['outputDir'])
+                    user['capsule_archive'] = archive
+                elif Path(body['outputDir']).expanduser().resolve() != archive.root.parent:
+                    raise RequestError(400, '当前会话请使用原归档目录；更换目录需重新登录。')
+                return archive.list(body['status'], offset)
+            if archive is None:
+                raise RequestError(400, '请先加载当前账号的时间胶囊列表。')
+            if path == '/capsules/detail':
+                return archive.detail(body['id'])
+            return archive.media(body['id'], body['key'])
+        except capsules.CapsuleError as exc:
+            raise RequestError(400, str(exc)) from None
+        finally:
+            with self.lock:
+                user['capsule_busy'] = False
+
     def dispatch(self, method, path, body, token):
         if method == 'GET' and path == '/health':
             return {'status': 'ok', 'defaultOutputDir': str(PROJECT / 'data')}
         if method == 'POST' and path in ('/auth/send-code', '/auth/login/code', '/auth/login/password'):
             return self.authenticate(path.rsplit('/', 1)[1], body)
         self.session(token)
+        if method == 'POST' and path in ('/capsules/list', '/capsules/detail', '/capsules/media'):
+            return self.capsule_request(path, body, token)
         if method == 'POST' and path == '/auth/logout':
             with self.lock:
                 self.sessions.pop(token, None)

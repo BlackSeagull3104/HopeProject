@@ -12,8 +12,9 @@ from .normalization import normalize_diaries
 from .media import localize
 from .export_markdown import export_diaries
 
-# Request value 0 has been exercised; no verified business label for 0 or 2 yet.
-NOTE_TYPE_OPTIONS = {'默认日记类型': 0}
+from .diary_types import FILTER_VALUES, LABELS
+
+NOTE_TYPE_OPTIONS = {LABELS[k]: v for k, v in FILTER_VALUES.items()}
 
 
 class ArchiveError(Exception):

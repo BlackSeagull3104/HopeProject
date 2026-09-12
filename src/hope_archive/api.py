@@ -7,6 +7,7 @@ from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
 from .storage import save_diaries, save_raw_response
+from .diary_types import FILTER_VALUES
 
 ENDPOINT = "https://hope.wantexe.com/services/v2/parallellife/period/dairy/list"
 
@@ -23,6 +24,8 @@ def fetch_diary_page(user_id: str, begin_date: str, end_date: str, *,
     No authentication or account verification is performed. The caller supplies
     their own backend user ID. There is intentionally no configurable `type`.
     """
+    if type(note_type) is not int or note_type not in FILTER_VALUES.values():
+        raise ValueError("Unsupported diary filter")
     if not user_id.strip():
         raise ValueError("user_id must not be empty")
     if page_num < 1 or page_size < 1:

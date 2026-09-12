@@ -169,6 +169,9 @@ async fn desktop_request(
                 | "/archive/download"
                 | "/export/markdown"
                 | "/export/document"
+                | "/capsules/list"
+                | "/capsules/detail"
+                | "/capsules/media"
         )
     } else {
         path == "/health"

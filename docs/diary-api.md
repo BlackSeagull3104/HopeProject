@@ -101,3 +101,8 @@ HopeProject 的 `src/hope_archive/api.py:11–37` 已使用 `POST https://hope.w
 - 未验证日期边界/时区、最大页长、稳定排序、并发新增造成的翻页变化，以及真实 JSON 的可空性。
 - 243 个 JADX 错误及未跟踪的其它入口意味着报告不是整包行为穷举。未来可在本人正常授权界面补充手动或网络验证；本轮没有进行。
 - “胶囊日记”与独立“时间胶囊”必须分开，后者见 [capsule-api.md](capsule-api.md)。
+
+
+## Implementation follow-up — 2026-09-12
+
+基于上述静态证据的最小实现与合成测试已加入 main，见 [实现范围](CATEGORIES_AND_CAPSULES.md)。本报告中的“本轮”指原静态分析轮次；实现没有消除上述服务端未知项，也未补充实时请求证据。

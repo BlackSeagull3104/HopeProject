@@ -49,12 +49,15 @@ def save_manifest(path, manifest):
 
 
 def localize(document, archive, timeout=30):
+    return localize_refs(discover_media(document), archive, timeout)
+
+
+def localize_refs(refs, archive, timeout=30):
     archive = Path(archive)
     archive.mkdir(parents=True, exist_ok=True)
     manifest_path = archive / 'media_manifest.json'
     previous = json.loads(manifest_path.read_text(encoding='utf-8')) if manifest_path.exists() else {}
     manifest = {'schema_version': 1, 'media': dict(previous.get('media', {}))}
-    refs = discover_media(document)
     unique = {media_key(r['url']): r for r in refs}
     stats = dict(total_references=len(refs), unique_references=len(unique), downloaded=0, skipped=0, failed=0)
     for key, ref in unique.items():

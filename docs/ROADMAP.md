@@ -925,3 +925,16 @@ AI should enhance that archive—not become a dependency of it.
 - [ ] Word reader layout acceptance across target environments.
 
 This is a source implementation milestone, not a new GitHub release or completion of all scheduled export/release requirements. See docs/EXPORTS.md for verification boundaries.
+
+
+## 2026-09-12 — Diary categories and independent time capsules
+
+- [x] Separate semantic diary request filters from entry category values; legacy archive fallback.
+- [x] React diary selection and local API integration, covered with synthetic transport tests.
+- [x] Independent Capsule query client, offset pagination, normalization and separate local snapshot storage.
+- [x] Session-scoped list/detail/media routes; unopened content is not fetched through detail.
+- [x] Minimal Capsule page with state filters, details and on-demand local media previews; frontend checks passed.
+- [ ] Authorized live diary category/server mapping and Capsule verification.
+- [ ] Native UI acceptance of all media formats and real-world Capsule states.
+
+This does not mark the broader complete Capsule acquisition/export milestone done. See [implementation scope](CATEGORIES_AND_CAPSULES.md).

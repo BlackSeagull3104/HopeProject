@@ -1,6 +1,7 @@
 """Offline, loss-conscious mapping of Hope diary fields. No network or file I/O."""
 
 from copy import deepcopy
+from .diary_types import entry_type
 
 
 def object_or_empty(value):
@@ -76,6 +77,7 @@ def normalize_diary(entry):
         raise ValueError("Diary requires a nonempty string or integer dairyId")
     note = object_or_empty(entry.get("noteInfo2"))
     result = {
+        "diary_type": entry_type(entry.get("noteType")),
         "id": diary_id, "note_date": entry.get("noteDate"), "created_at": None,
         "original_text": entry.get("dairy"), "original_text_secondary": entry.get("dairy2"),
         "author": normalize_person(entry.get("user")),
