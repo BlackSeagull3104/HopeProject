@@ -9,16 +9,17 @@ import secrets
 import threading
 import time
 
-from . import application, auth, capsules
+from . import application, auth, capsules, preview
 from .diary_types import filter_value, DiaryType, normalized_type
-from .export_documents import ExportFormat, export_document
+from .export_documents import ExportFormat, export_document, export_range
 
 PROJECT = Path(__file__).resolve().parents[2]
 ORIGINS = {'http://localhost:5173', 'http://127.0.0.1:5173'}
 
 
 class RequestError(Exception):
-    def __init__(self, status, message):
+    def __init__(self, status, message, code=None):
+        self.code = code
         self.status = status
         super().__init__(message)
 
@@ -72,7 +73,8 @@ class LocalService:
             return {'token': token, 'userId': user.user_id, 'displayName': nickname or 'Hope 用户'}
         except auth.AuthError as exc:
             # Never return untrusted server messages or the raw response.
-            raise RequestError(400, str(exc)) from None
+            code, message = auth.public_auth_error(exc, action)
+            raise RequestError(503 if code == 'AUTH_NETWORK_ERROR' else 400, message, code) from None
         finally:
             with self.lock:
                 self.auth_busy = False
@@ -101,14 +103,14 @@ class LocalService:
                 self.jobs.pop(next(iter(self.jobs)))
             job_id = secrets.token_urlsafe(16)
             self.jobs[job_id] = {'owner': token, 'state': 'running', 'stage': '正在准备…', 'kind': kind}
-            self.pool.submit(self.run, job_id, kind, dict(body), user['userId'])
+            self.pool.submit(self.run, job_id, kind, dict(body), user['userId'], user.get('displayName'))
             return {'jobId': job_id}
 
     def update(self, job_id, **values):
         with self.lock:
             self.jobs[job_id].update(values)
 
-    def run(self, job_id, kind, body, user_id):
+    def run(self, job_id, kind, body, user_id, nickname=None):
         try:
             if kind == 'archive':
                 result = application.export_archive(user_id, body['beginDate'], body['endDate'], filter_value(body.get('diaryType', 'all')),
@@ -142,7 +144,7 @@ class LocalService:
                 category = body.get('diaryType', 'all')
                 if category != 'all':
                     document = dict(document, diaries=[d for d in document['diaries'] if normalized_type(d) == category])
-                stats = export_document(document, manifest, archive, output, format)
+                stats = export_range(document, manifest, archive, output, format, nickname, body['beginDate'], body['endDate']) if 'beginDate' in body else export_document(document, manifest, archive, output, format)
                 summary = {'outputDir': str(output), 'diaryCount': len(document['diaries']), 'export': stats, 'format': format}
                 if format == 'markdown':
                     summary['markdown'] = stats
@@ -202,6 +204,29 @@ class LocalService:
         self.session(token)
         if method == 'POST' and path in ('/capsules/list', '/capsules/detail', '/capsules/media'):
             return self.capsule_request(path, body, token)
+        if method == 'POST' and path == '/diaries/preview':
+            fields(body, ['date'], ['diaryType'])
+            user = self.session(token)
+            try:
+                document = preview.for_date(user['userId'], body['date'], body.get('diaryType', 'all'))
+                refs = preview.media_references(document)
+                with self.lock:
+                    cache = user.setdefault('preview_media', {})
+                    cache.update(refs)
+                    while len(cache) > 400:
+                        cache.pop(next(iter(cache)))
+                return document
+            except preview.PreviewError as exc:
+                raise RequestError(502, str(exc)) from None
+        if method == 'POST' and path == '/diaries/preview/media':
+            fields(body, ['key'])
+            url = self.session(token).get('preview_media', {}).get(body['key'])
+            if not url:
+                raise RequestError(404, '请重新加载当天日记后查看媒体。')
+            try:
+                return preview.load_media(url)
+            except preview.PreviewError as exc:
+                raise RequestError(502, str(exc)) from None
         if method == 'POST' and path == '/auth/logout':
             with self.lock:
                 self.sessions.pop(token, None)
@@ -252,7 +277,7 @@ class Handler(BaseHTTPRequestHandler):
             result = self.server.service.dispatch(self.command, self.path, body, token)
             self.reply(200, result)
         except RequestError as exc:
-            self.reply(exc.status, {'error': str(exc)})
+            self.reply(exc.status, {'error': str(exc), **({'code': exc.code} if exc.code else {})})
         except application.ArchiveError as exc:
             self.reply(400, {'error': str(exc)})
         except (ValueError, UnicodeError):

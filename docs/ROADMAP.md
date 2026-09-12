@@ -938,3 +938,16 @@ This is a source implementation milestone, not a new GitHub release or completio
 - [ ] Native UI acceptance of all media formats and real-world Capsule states.
 
 This does not mark the broader complete Capsule acquisition/export milestone done. See [implementation scope](CATEGORIES_AND_CAPSULES.md).
+
+
+## 2026-09-12 — Online preview and export UX
+
+- [x] Fixed authentication error codes/messages, exact semantic allowlist and network fallback, synthetic tests passed.
+- [x] No-write single-date diary preview through Python, category filtering and normalized content/media/comments.
+- [x] React date preview with loading/error/empty/success states; typecheck, lint and build passed.
+- [x] Nickname/date-range combined export for md/tex/pdf/docx; safe filename and same-line Markdown metadata tests.
+- [ ] Actual Hope failure-message compatibility and live diary preview acceptance.
+- [ ] Manual native directory selection/cancellation and four-format export acceptance.
+- [ ] Independent Capsule date semantics and combined date preview.
+
+See [scope and manual checklist](PREVIEW_UX.md). No new GitHub Release is implied.

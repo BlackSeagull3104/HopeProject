@@ -16,7 +16,7 @@ from hope_archive.media import media_key
 
 PROJECT = Path(__file__).resolve().parents[2]
 EMOTION_LABELS = {'emotion_ha': '哈'}
-WEATHER_LABELS = {'weather_qing': '晴'}
+WEATHER_LABELS = {'weather_qing': '晴 ☀️'}
 IMAGE_MAX_HEIGHT = 480  # CSS pixels; limits tall screenshots without editing files.
 LONG_IMAGE_RATIO = 2.5  # Provisional height/width threshold, not a semantic classifier.
 
@@ -146,9 +146,11 @@ def media_markdown(url, kind, manifest, archive, markdown_path):
 
 def render_diary(diary, manifest, archive, markdown_path):
     parts = ['# ' + ((diary.get('note_date') or 'Unknown date')[:10])]
-    for field, label, mapping in [('emotion', '情绪', EMOTION_LABELS), ('weather', '天气', WEATHER_LABELS)]:
+    atmosphere = []
+    for field, label, mapping in [('emotion', '心情', EMOTION_LABELS), ('weather', '天气', WEATHER_LABELS)]:
         value = display_value(diary.get(field), mapping)
-        if value is not None: parts.append(f'{label}：{value}')
+        if value is not None: atmosphere.append(f'{label}：{value}')
+    if atmosphere: parts.append('　　'.join(atmosphere))
     content = diary.get('content') or []
     pending_images = []
     def flush_images():

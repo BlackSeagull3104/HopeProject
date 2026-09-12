@@ -169,6 +169,8 @@ async fn desktop_request(
                 | "/archive/download"
                 | "/export/markdown"
                 | "/export/document"
+                | "/diaries/preview"
+                | "/diaries/preview/media"
                 | "/capsules/list"
                 | "/capsules/detail"
                 | "/capsules/media"

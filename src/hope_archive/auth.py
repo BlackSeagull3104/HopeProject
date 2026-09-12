@@ -36,7 +36,8 @@ ONE_CLICK_LOGIN_ENDPOINT = 'https://hope.wantexe.com/services/v2/user/loginEasil
 
 class AuthError(Exception):
     """Safe default error text; optional server text stays in memory only."""
-    def __init__(self, message, *, server_message=None):
+    def __init__(self, message, *, server_message=None, code="AUTH_UNKNOWN_ERROR"):
+        self.code = code
         super().__init__(message)
         # Untrusted server text may contain private details. Do not log/display it
         # automatically; the login UI uses safe_error_message before presentation.
@@ -191,9 +192,9 @@ def _post_auth(endpoint, payload, *, form=False, timeout=30):
     except HTTPError as exc:
         code = exc.code
         exc.close()  # Do not dump a possibly sensitive error body.
-        raise AuthError(f'认证请求返回 HTTP {code}，未确认操作成功。') from None
+        raise AuthError('认证服务暂时不可用，请稍后重试。', code='AUTH_NETWORK_ERROR') from None
     except (URLError, TimeoutError, OSError):
-        raise AuthError('认证请求失败或超时；是否已处理未知，请勿立即重复发送。') from None
+        raise AuthError('网络连接失败或超时，请检查网络；请勿立即重复发送验证码。', code='AUTH_NETWORK_ERROR') from None
     try:
         document = json.loads(body)
     except (ValueError, UnicodeError):
@@ -223,6 +224,34 @@ def login_by_password(mobile, password, *, timeout=30):
                'password': require_text(password, 'password'),
                'signature': make_password_login_signature(mobile, password)}
     return parse_login_response(_post_auth(PASSWORD_LOGIN_ENDPOINT, payload, form=True, timeout=timeout))
+
+
+AUTH_MESSAGES = {
+    'AUTH_PHONE_NOT_REGISTERED': '该手机号尚未注册 Hope',
+    'AUTH_CODE_INVALID': '验证码错误，请重新输入',
+    'AUTH_PASSWORD_INVALID': '密码错误，请重新输入',
+    'AUTH_NETWORK_ERROR': '网络或认证服务暂时不可用，请检查网络后重试；请勿立即重复发送验证码。',
+    'AUTH_UNKNOWN_ERROR': '认证未成功，请检查输入或稍后重试。',
+}
+
+
+def public_auth_error(error, action):
+    """Exact semantic text allowlist; no invented numeric server-code mapping.
+
+    Unknown/ambiguous messages stay generic. Never return the original text.
+    These phrases are compatibility rules, not live-verified server responses.
+    """
+    message = (error.server_message or '').strip().rstrip('。.!！')
+    code = error.code
+    if message in ('手机号未注册', '该手机号未注册', '该手机号尚未注册', '该手机号尚未注册 Hope', '用户未注册'):
+        code = 'AUTH_PHONE_NOT_REGISTERED'
+    elif action == 'code' and message in ('验证码错误', '验证码不正确', '验证码错误，请重新输入'):
+        code = 'AUTH_CODE_INVALID'
+    elif action == 'password' and message in ('密码错误', '密码不正确', '密码错误，请重新输入'):
+        code = 'AUTH_PASSWORD_INVALID'
+    if code not in AUTH_MESSAGES:
+        code = 'AUTH_UNKNOWN_ERROR'
+    return code, AUTH_MESSAGES[code]
 
 
 def safe_error_message(error, *private_values):

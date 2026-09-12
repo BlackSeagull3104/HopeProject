@@ -5,6 +5,7 @@ import {
   type FormEvent,
   type ReactNode,
 } from "react"
+import { DiaryPreview } from "@/DiaryPreview"
 import { CapsulePage } from "@/CapsulePage"
 import { DIARY_TYPES, type DiaryType } from "@/lib/diary"
 import { Archive, FileText, LogOut } from "lucide-react"
@@ -34,7 +35,9 @@ export function App() {
   const [mode, setMode] = useState<"code" | "password">("code")
   const [mobile, setMobile] = useState("")
   const [secret, setSecret] = useState("")
-  const [page, setPage] = useState<"archive" | "export" | "capsules">("archive")
+  const [page, setPage] = useState<
+    "archive" | "export" | "capsules" | "preview"
+  >("archive")
   const [beginDate, setBeginDate] = useState(
     () => todayString().slice(0, 8) + "01"
   )
@@ -309,22 +312,26 @@ export function App() {
         <h1 className="mb-2 text-lg font-semibold">Hope Archive</h1>
         <p className="mb-10 text-xs text-muted-foreground">你的本地日记档案</p>
         <nav className="flex gap-2 md:flex-col">
-          {(["archive", "export", "capsules"] as const).map((value) => (
-            <Button
-              key={value}
-              variant={page === value ? "secondary" : "ghost"}
-              className="justify-start"
-              aria-current={page === value ? "page" : undefined}
-              onClick={() => setPage(value)}
-            >
-              {value === "archive" ? <Archive /> : <FileText />}
-              {value === "archive"
-                ? "下载归档"
-                : value === "capsules"
-                  ? "时间胶囊"
-                  : "导出"}
-            </Button>
-          ))}
+          {(["preview", "archive", "export", "capsules"] as const).map(
+            (value) => (
+              <Button
+                key={value}
+                variant={page === value ? "secondary" : "ghost"}
+                className="justify-start"
+                aria-current={page === value ? "page" : undefined}
+                onClick={() => setPage(value)}
+              >
+                {value === "archive" ? <Archive /> : <FileText />}
+                {value === "archive"
+                  ? "下载归档"
+                  : value === "preview"
+                    ? "日记预览"
+                    : value === "capsules"
+                      ? "时间胶囊"
+                      : "导出"}
+              </Button>
+            )
+          )}
         </nav>
         <p className="mt-auto pt-10 text-xs leading-6 text-muted-foreground">
           已登录：{session.displayName?.trim() || "Hope 用户"}
@@ -338,9 +345,11 @@ export function App() {
             个人档案 /{" "}
             {page === "archive"
               ? "下载归档"
-              : page === "capsules"
-                ? "时间胶囊"
-                : "导出"}
+              : page === "preview"
+                ? "日记预览"
+                : page === "capsules"
+                  ? "时间胶囊"
+                  : "导出"}
           </span>
           <Button
             variant="ghost"
@@ -360,7 +369,9 @@ export function App() {
             退出登录
           </Button>
         </header>
-        {page === "capsules" ? (
+        {page === "preview" ? (
+          <DiaryPreview key={session.token} session={session} />
+        ) : page === "capsules" ? (
           <CapsulePage
             key={session.token}
             session={session}

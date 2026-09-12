@@ -47,7 +47,7 @@ def blocks(diary, manifest, archive):
     for field, label, mapping in [('emotion', '情绪', EMOTION_LABELS), ('weather', '天气', WEATHER_LABELS)]:
         value = display_value(diary.get(field), mapping)
         if value is not None:
-            yield 'text', f'{label}：{value}'
+            yield 'text', f'{label}：{value.replace(" ☀️", "")}'
     content = diary.get('content') or []
     for block in content:
         if block.get('text'):
@@ -193,4 +193,40 @@ def export_document(document, manifest, archive, output_dir, format='markdown'):
             stats['generated' if write_exclusive(path, data) else 'skipped'] += 1
         except (OSError, ValueError, TypeError):
             stats['failed'] += 1  # Never log diary content or private paths.
+    return stats
+
+
+def range_filename(nickname, begin, end, format):
+    import re
+    from .application import validate_date_range
+    validate_date_range(begin, end)
+    format = ExportFormat(format)
+    name = re.sub(r'[\\/:*?"<>|\x00-\x1f]', '_', nickname or '').strip().rstrip('. ')
+    # Numeric/phone-like nicknames are not used as public filenames.
+    if not name or re.fullmatch(r'[+\d\s()_-]+', name) or name == 'Hope 用户':
+        stem = 'Hope日记'
+    else:
+        stem = name[:80].rstrip('. ') + '的日记'
+    suffix = 'md' if format == ExportFormat.MARKDOWN else format.value
+    return f'{stem}_{begin}--{end}.{suffix}'
+
+
+def export_range(document, manifest, archive, output_dir, format, nickname, begin, end):
+    """User-facing combined export; archive's per-entry files remain unchanged."""
+    from .export_markdown import render_diary
+    format = ExportFormat(format)
+    archive = Path(archive).resolve()
+    path = Path(output_dir).resolve() / range_filename(nickname, begin, end, format)
+    stats = dict(entries=len(document['diaries']), generated=0, skipped=0, failed=0)
+    if not document['diaries']:
+        return stats
+    try:
+        if format == ExportFormat.MARKDOWN:
+            data = '\n---\n\n'.join(render_diary(d, manifest, archive, path) for d in document['diaries']).encode('utf-8')
+        else:
+            items = [block for d in document['diaries'] for block in blocks(d, manifest, archive)]
+            data = render_tex(items, path) if format == ExportFormat.TEX else render_pdf(items) if format == ExportFormat.PDF else render_docx(items)
+        stats['generated' if write_exclusive(path, data) else 'skipped'] = 1
+    except (OSError, ValueError, TypeError):
+        stats['failed'] = 1
     return stats

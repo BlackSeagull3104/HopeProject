@@ -55,6 +55,19 @@ class LocalAPITests(unittest.TestCase):
         self.assertNotIn('never-return', json.dumps(result))
         self.token = result['token']
 
+    def test_preview_http_and_auth_feedback(self):
+        with patch.object(auth, 'login_by_password', side_effect=auth.AuthError('private-fixture', server_message='密码错误')):
+            status, result = self.call('/auth/login/password', {'mobile': 'fixture-mobile', 'secret': 'fixture-secret'})
+        self.assertEqual(status, 400)
+        self.assertEqual(result, {'error': '密码错误，请重新输入', 'code': 'AUTH_PASSWORD_INVALID'})
+        self.login()
+        with patch('hope_archive.api.fetch_all_diaries', return_value=[]) as fetch:
+            status, result = self.call('/diaries/preview', {'date': '2024-01-02'})
+        self.assertEqual(status, 200)
+        self.assertEqual(result['diaries'], [])
+        self.assertEqual(fetch.call_args.args, ('42', '2024-01-02', '2024-01-02'))
+        self.assertIsNone(fetch.call_args.kwargs['data_dir'])
+
     def wait_job(self, job_id):
         for _ in range(100):
             status, job = self.call('/jobs/' + job_id)

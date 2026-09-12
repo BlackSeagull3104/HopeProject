@@ -32,8 +32,8 @@ def fetch_diary_page(user_id: str, begin_date: str, end_date: str, *,
         raise ValueError("page_num and page_size must be positive")
     if not math.isfinite(timeout) or timeout <= 0:
         raise ValueError("timeout must be finite and positive")
-    path = Path(raw_dir) / f"page_{page_num:04d}.json"
-    if path.exists():
+    path = Path(raw_dir) / f"page_{page_num:04d}.json" if raw_dir is not None else None
+    if path is not None and path.exists():
         raise FileExistsError(f"Raw response already exists: {path}. Use a new data directory.")
     payload = dict(beginDate=begin_date, endDate=end_date, noteType=note_type,
                    pageSize=page_size, pageNum=page_num, type="mine", userId=user_id)
@@ -46,11 +46,13 @@ def fetch_diary_page(user_id: str, begin_date: str, end_date: str, *,
     except HTTPError as exc:
         # HTTP error bodies are evidence too, even when they contain HTML.
         with exc:
-            save_raw_response(path, exc.read())
+            if path is not None:
+                save_raw_response(path, exc.read())
         raise DiaryAPIError(f"Page {page_num}: HTTP {exc.code}; raw body saved to {path}") from exc
     except (URLError, TimeoutError, OSError) as exc:
         raise DiaryAPIError(f"Page {page_num}: network request failed or timed out") from exc
-    save_raw_response(path, body)
+    if path is not None:
+        save_raw_response(path, body)
     try:
         return json.loads(body)
     except (ValueError, UnicodeError) as exc:
@@ -70,7 +72,9 @@ def fetch_all_diaries(user_id: str, begin_date: str, end_date: str, *,
         response = fetch_diary_page(
             user_id, begin_date, end_date, page_num=page_num, page_size=page_size,
             note_type=note_type, timeout=timeout,
-            raw_dir=Path(data_dir) / "raw/diaries")
+            raw_dir=Path(data_dir) / "raw/diaries" if data_dir is not None else None)
+        if isinstance(response, dict) and "status" in response and (type(response["status"]) is not int or response["status"] != 1):
+            raise DiaryAPIError("Diary request was not successful")
         data = response.get("datas") if isinstance(response, dict) else None
         if not isinstance(data, dict):
             raise DiaryAPIError(f"Page {page_num}: missing datas object")
@@ -90,7 +94,8 @@ def fetch_all_diaries(user_id: str, begin_date: str, end_date: str, *,
         if len(entries) > expected_total:
             raise DiaryAPIError("Received more entries than datas.total")
         if len(entries) == expected_total:
-            save_diaries(Path(data_dir) / "processed/diaries.json", entries)
+            if data_dir is not None:
+                save_diaries(Path(data_dir) / "processed/diaries.json", entries)
             return entries
         if not page:
             raise DiaryAPIError(f"Page {page_num}: empty page before reaching datas.total")

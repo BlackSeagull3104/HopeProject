@@ -30,10 +30,10 @@ class MarkdownTests(unittest.TestCase):
     def test_confirmed_and_unknown_mappings(self):
         diary = {'id': 1, 'emotion': {'value': 1, 'identity': 'emotion_ha'}, 'weather': {'identity': 'weather_qing'}}
         text = self.render(diary)
-        self.assertIn('情绪：哈', text); self.assertIn('天气：晴', text)
+        self.assertIn('心情：哈', text); self.assertIn('天气：晴', text)
         self.assertNotIn('"value"', text)
         diary['emotion']['identity'] = 'emotion_sang'
-        self.assertIn('情绪：emotion_sang', self.render(diary))
+        self.assertIn('心情：emotion_sang', self.render(diary))
         diary['emotion'] = None; diary['weather'] = {}
         self.assertNotIn('情绪：', self.render(diary))
 
@@ -165,7 +165,7 @@ class MarkdownTests(unittest.TestCase):
         relative = diary_path(diary)
         self.assertEqual(relative, Path('2026/09/2026-09-05_123.md'))
         rendered = (self.root / relative).read_text(encoding='utf-8')
-        self.assertTrue(rendered.startswith('# 2026-09-05\n\n情绪：哈\n\n天气：晴\n\n'))
+        self.assertTrue(rendered.startswith('# 2026-09-05\n\n心情：哈　　天气：晴 ☀️\n\n'))
         self.assertFalse(rendered.startswith('---'))
         for hidden in ['diary_id:', 'note_date:', '08:43:12']:
             self.assertNotIn(hidden, rendered)

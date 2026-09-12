@@ -44,7 +44,7 @@ class DocumentExportTests(unittest.TestCase):
                 self.assertTrue(path.is_file())
                 if format.value in ('markdown', 'tex'):
                     text = path.read_text(encoding='utf-8')
-                    for expected in ('2024-01-01', '合成日记', '留言测试', '情绪', '天气'):
+                    for expected in ('2024-01-01', '合成日记', '留言测试', ('心情' if format.value == 'markdown' else '情绪'), '天气'):
                         self.assertIn(expected, text)
                     self.assertNotIn(str(self.root), text)
                 elif format.value == 'docx':
