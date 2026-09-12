@@ -80,3 +80,10 @@ README 链接到对应 Release 页面，不使用仅适用于稳定发布的 lat
 ## main 源码中的导出增量
 
 本轮增加 python-docx、ReportLab 和 Tauri dialog 插件（仅开放 dialog:allow-open），构建流程保持不变。PDF 在 Windows 使用系统宋体，不把 Windows 字体文件放进安装器。TeX 导出只生成源码与图片，用户自行安装 XeLaTeX 编译。构建出的本地安装器不等于更新 GitHub Release；本轮不发布新版本。详见 [EXPORTS.md](EXPORTS.md)。
+
+
+## v0.1.2-dev portable release
+
+The v0.1.2-dev release distributes the verified build from source commit b39d1125c8552ff6a079b30d179ba68779a021f9 as `Hope-Archive-v0.1.2-dev-windows-x64.zip`. It contains `Hope Archive/Hope Archive.exe`, `Hope Archive/hope-archive-backend.exe`, and `Hope Archive/README.txt`. Both executables must remain together. WebView2 is required separately.
+
+This is a development pre-release, not a new installer build. Embedded Windows version remains 0.1.1; the release tag identifies the newer source milestone. The ZIP SHA-256 is `fedbf5259b71671a9dcdf8110937fdc4d21baec924e35e5074c6161b087ec71f`. See [release notes](RELEASE_NOTES_v0.1.2-dev.md) for verification and remaining limits.

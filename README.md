@@ -6,16 +6,16 @@
 
 ### Windows
 
-[⬇ **Download Hope Archive for Windows**](https://github.com/BlackSeagull3104/HopeProject/releases/tag/v0.1.1-dev)
+[⬇ **Download Hope Archive for Windows**](https://github.com/BlackSeagull3104/HopeProject/releases/tag/v0.1.2-dev)
 
-> Development Preview · Windows x64 · v0.1.1-dev
+> Development Preview · Windows x64 · v0.1.2-dev
 
-1. 下载 `Hope-Archive-v0.1.1-dev-windows-x64-setup.exe`。
-2. 运行安装器。
-3. 从 Windows 开始菜单启动 **Hope Archive**。
-4. 使用自己的 Hope 账号登录。
+1. 下载 `Hope-Archive-v0.1.2-dev-windows-x64.zip`。
+2. 完整解压 ZIP，打开其中的 `Hope Archive` 文件夹。
+3. 双击 **Hope Archive.exe**；请保持 `hope-archive-backend.exe` 与它在同一目录。
+4. 使用自己的 Hope 账号登录，或直接使用离线搜索与 AI 设置。
 
-只需一个安装器；Python 后端会自动安装、启动和退出。无需 Python、Node.js、Rust、克隆仓库或手动配置协议常量。若系统缺少 WebView2，安装器会联网安装它。
+无需 Python、Node.js、Rust、克隆仓库或手动配置协议常量。运行需要 Microsoft WebView2 Runtime；此 ZIP 不包含 WebView2 安装器。此次发布沿用已验证的最新构建，EXE 内部版本仍为 0.1.1；GitHub 标签 v0.1.2-dev 标识新增功能的源码里程碑。
 
 这是未签名开发预览，不是稳定版本。应用级协议常量随 Python 后端分发；手机号、密码、验证码、会话和日记不随安装包分发。
 
@@ -23,10 +23,10 @@
 
 - 通过现有短信/密码认证流程登录自己的账号。
 - 下载自己的日记与媒体，整理为本地 Markdown。
-- 当前 main 源码新增 Markdown、TeX、PDF、Word 导出、目录选择和昵称显示，见 [导出说明](docs/EXPORTS.md)。上方已发布安装器尚未包含本轮改动。
-- 当前 main 源码支持三类日记筛选与独立时间胶囊列表、详情、按需媒体保存；合成测试通过，真实账号验收待做，见 [使用与验证范围](docs/CATEGORIES_AND_CAPSULES.md)。
-- 当前 main 源码新增按日在线预览、明确认证错误反馈及昵称日期范围合并导出；真实账号验收待做，见 [预览与导出说明](docs/PREVIEW_UX.md)。
-- 当前 main 源码新增离线归档全文搜索及 Windows 凭据管理器保存的 BYOK AI 设置；不含 AI 日记分析，见 [搜索与 AI 隐私说明](docs/SEARCH_AI.md)。
+- v0.1.2-dev 包含 Markdown、TeX、PDF、Word 导出、目录选择和昵称显示，见 [导出说明](docs/EXPORTS.md)。上方 v0.1.2-dev ZIP 已包含这些功能。
+- v0.1.2-dev 支持三类日记筛选与独立时间胶囊列表、详情、按需媒体保存；合成测试通过，真实账号验收待做，见 [使用与验证范围](docs/CATEGORIES_AND_CAPSULES.md)。
+- v0.1.2-dev 包含按日在线预览、明确认证错误反馈及昵称日期范围合并导出；真实账号验收待做，见 [预览与导出说明](docs/PREVIEW_UX.md)。
+- v0.1.2-dev 包含离线归档全文搜索及 Windows 凭据管理器保存的 BYOK AI 设置；不含 AI 日记分析，见 [搜索与 AI 隐私说明](docs/SEARCH_AI.md)。
 - React 桌面界面与自动管理的 Python 后端。
 
 ## Usage
