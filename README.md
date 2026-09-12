@@ -26,6 +26,7 @@
 - 当前 main 源码新增 Markdown、TeX、PDF、Word 导出、目录选择和昵称显示，见 [导出说明](docs/EXPORTS.md)。上方已发布安装器尚未包含本轮改动。
 - 当前 main 源码支持三类日记筛选与独立时间胶囊列表、详情、按需媒体保存；合成测试通过，真实账号验收待做，见 [使用与验证范围](docs/CATEGORIES_AND_CAPSULES.md)。
 - 当前 main 源码新增按日在线预览、明确认证错误反馈及昵称日期范围合并导出；真实账号验收待做，见 [预览与导出说明](docs/PREVIEW_UX.md)。
+- 当前 main 源码新增离线归档全文搜索及 Windows 凭据管理器保存的 BYOK AI 设置；不含 AI 日记分析，见 [搜索与 AI 隐私说明](docs/SEARCH_AI.md)。
 - React 桌面界面与自动管理的 Python 后端。
 
 ## Usage

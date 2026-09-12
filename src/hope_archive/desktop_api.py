@@ -24,6 +24,7 @@ class DesktopService(local_api.LocalService):
     def __init__(self, home):
         super().__init__()
         self.home = home
+        self.search_cache = home / "search"
 
     def dispatch(self, method, path, body, token):
         if method == 'GET' and path == '/health':

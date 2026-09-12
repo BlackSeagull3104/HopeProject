@@ -951,3 +951,16 @@ This does not mark the broader complete Capsule acquisition/export milestone don
 - [ ] Independent Capsule date semantics and combined date preview.
 
 See [scope and manual checklist](PREVIEW_UX.md). No new GitHub Release is implied.
+
+
+## 2026-09-12 — Local search and BYOK foundations
+
+- [x] Additional SQLite FTS5 index over normalized local files; incremental sync/rebuild/deletion and Chinese keyword tests.
+- [x] Offline search page with date/category/content-type filters, safe highlights and local textual detail; frontend checks passed.
+- [x] Windows Credential Manager abstraction, synthetic real OS write/read/replace/delete smoke verified; no plaintext fallback.
+- [x] BYOK presets/custom endpoint/model, safe metadata, replace/delete and mocked connection tests.
+- [ ] Manual native search/settings acceptance with the user's archive and own provider key.
+- [ ] Real cloud model generation compatibility (not exercised; connection test only lists models).
+- [ ] RAG, embeddings, summaries and archive AI analysis (outside this milestone).
+
+See [architecture and privacy boundaries](SEARCH_AI.md). Existing stable archive files remain authoritative; no new Release.

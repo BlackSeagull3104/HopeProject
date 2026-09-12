@@ -5,6 +5,8 @@ import {
   type FormEvent,
   type ReactNode,
 } from "react"
+import { SearchPage } from "@/SearchPage"
+import { AISettingsPage } from "@/AISettingsPage"
 import { DiaryPreview } from "@/DiaryPreview"
 import { CapsulePage } from "@/CapsulePage"
 import { DIARY_TYPES, type DiaryType } from "@/lib/diary"
@@ -36,7 +38,7 @@ export function App() {
   const [mobile, setMobile] = useState("")
   const [secret, setSecret] = useState("")
   const [page, setPage] = useState<
-    "archive" | "export" | "capsules" | "preview"
+    "archive" | "export" | "capsules" | "preview" | "search" | "ai"
   >("archive")
   const [beginDate, setBeginDate] = useState(
     () => todayString().slice(0, 8) + "01"
@@ -200,6 +202,34 @@ export function App() {
     </div>
   )
 
+  if (page === "search" || page === "ai")
+    return (
+      <div className="min-h-svh">
+        <header className="flex flex-wrap gap-3 border-b p-5">
+          <Button variant="ghost" onClick={() => setPage("archive")}>
+            {session ? "返回归档" : "返回登录"}
+          </Button>
+          <Button
+            variant={page === "search" ? "secondary" : "ghost"}
+            onClick={() => setPage("search")}
+          >
+            本地搜索
+          </Button>
+          <Button
+            variant={page === "ai" ? "secondary" : "ghost"}
+            onClick={() => setPage("ai")}
+          >
+            AI 设置
+          </Button>
+        </header>
+        {page === "search" ? (
+          <SearchPage defaultRoot={outputDir} />
+        ) : (
+          <AISettingsPage />
+        )}
+      </div>
+    )
+
   if (!session)
     return (
       <main className="grid min-h-svh place-items-center bg-muted/25 p-8">
@@ -300,6 +330,14 @@ export function App() {
               </fieldset>
             </form>
             {notices}
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={() => setPage("search")}>
+                离线搜索归档
+              </Button>
+              <Button variant="ghost" onClick={() => setPage("ai")}>
+                AI 设置
+              </Button>
+            </div>
             <p className="text-xs text-muted-foreground">{health}</p>
           </div>
         </section>
@@ -332,6 +370,20 @@ export function App() {
               </Button>
             )
           )}
+          <Button
+            variant="ghost"
+            className="justify-start"
+            onClick={() => setPage("search")}
+          >
+            本地搜索
+          </Button>
+          <Button
+            variant="ghost"
+            className="justify-start"
+            onClick={() => setPage("ai")}
+          >
+            AI 设置
+          </Button>
         </nav>
         <p className="mt-auto pt-10 text-xs leading-6 text-muted-foreground">
           已登录：{session.displayName?.trim() || "Hope 用户"}

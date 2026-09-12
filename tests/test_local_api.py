@@ -21,6 +21,7 @@ class LocalAPITests(unittest.TestCase):
         self.thread = threading.Thread(target=self.server.serve_forever, daemon=True)
         self.thread.start()
         self.root = tempfile.TemporaryDirectory()
+        self.server.service.search_cache = Path(self.root.name) / "search-cache"
         self.addCleanup(self.root.cleanup)
         self.addCleanup(self.close)
         self.token = None

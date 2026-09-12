@@ -9,7 +9,8 @@ import secrets
 import threading
 import time
 
-from . import application, auth, capsules, preview
+from . import application, auth, capsules, preview, search, ai
+from .secure_store import SecretStoreError
 from .diary_types import filter_value, DiaryType, normalized_type
 from .export_documents import ExportFormat, export_document, export_range
 
@@ -39,6 +40,8 @@ class LocalService:
         self.jobs = {}
         self.resend_at = 0
         self.auth_busy = False
+        self.ai_settings = None
+        self.search_cache = None
         self.pool = ThreadPoolExecutor(max_workers=1)
 
     def session(self, token):
@@ -118,6 +121,10 @@ class LocalService:
                 summary = {'outputDir': str(result.output_dir), 'diaryCount': result.diary_count,
                            'media': result.media, 'markdown': result.markdown}
                 complete = result.complete
+                try:
+                    search.SearchIndex(body['outputDir'], self.search_cache).sync()
+                except Exception:
+                    summary['searchWarning'] = '归档已保存；搜索索引暂未更新，可在搜索页面重建。'
             else:
                 format = body.get('format', 'markdown')
                 self.update(job_id, stage='正在生成导出文件…')
@@ -184,7 +191,12 @@ class LocalService:
                     user['capsule_archive'] = archive
                 elif Path(body['outputDir']).expanduser().resolve() != archive.root.parent:
                     raise RequestError(400, '当前会话请使用原归档目录；更换目录需重新登录。')
-                return archive.list(body['status'], offset)
+                result = archive.list(body['status'], offset)
+                try:
+                    search.SearchIndex(str(archive.root.parent), self.search_cache).sync()
+                except Exception:
+                    result['searchWarning'] = '搜索索引暂未更新，可在搜索页面重建。'
+                return result
             if archive is None:
                 raise RequestError(400, '请先加载当前账号的时间胶囊列表。')
             if path == '/capsules/detail':
@@ -196,11 +208,37 @@ class LocalService:
             with self.lock:
                 user['capsule_busy'] = False
 
+    def local_features(self, path, body):
+        try:
+            if path.startswith('/search/'):
+                if path == '/search/query':
+                    fields(body, ['root', 'query'], ['beginDate', 'endDate', 'diaryType', 'contentType', 'offset'])
+                elif path == '/search/detail': fields(body, ['root', 'id'])
+                else: fields(body, ['root'])
+                index = search.SearchIndex(body['root'], self.search_cache)
+                if path == '/search/rebuild': return index.sync(rebuild=True)
+                if path == '/search/detail': return index.detail(body['id'])
+                return index.query(body['query'], body.get('beginDate', ''), body.get('endDate', ''),
+                    body.get('diaryType', 'all'), body.get('contentType', 'all'), body.get('offset', 0))
+            if path == '/ai/presets':
+                fields(body, [])
+                return {'presets': [dict(value, id=key) for key, value in ai.PRESETS.items()]}
+            with self.lock:
+                if self.ai_settings is None: self.ai_settings = ai.AISettings()
+            if path in ('/ai/status', '/ai/delete'):
+                fields(body, ['provider'])
+                return self.ai_settings.metadata(body['provider']) if path == '/ai/status' else self.ai_settings.delete(body['provider'])
+            return self.ai_settings.save(body) if path == '/ai/save' else self.ai_settings.test(body)
+        except (search.SearchError, ai.AIError, SecretStoreError) as exc:
+            raise RequestError(400, str(exc)) from None
+
     def dispatch(self, method, path, body, token):
         if method == 'GET' and path == '/health':
             return {'status': 'ok', 'defaultOutputDir': str(PROJECT / 'data')}
         if method == 'POST' and path in ('/auth/send-code', '/auth/login/code', '/auth/login/password'):
             return self.authenticate(path.rsplit('/', 1)[1], body)
+        if method == 'POST' and path in ('/search/query', '/search/detail', '/search/rebuild', '/ai/presets', '/ai/status', '/ai/save', '/ai/delete', '/ai/test'):
+            return self.local_features(path, body)
         self.session(token)
         if method == 'POST' and path in ('/capsules/list', '/capsules/detail', '/capsules/media'):
             return self.capsule_request(path, body, token)

@@ -40,11 +40,23 @@ def main():
             except HTTPError as exc:
                 assert exc.code == 403
                 exc.close()
+            # Synthetic-only offline search proves the frozen bundle includes FTS5.
+            root = Path(folder) / 'synthetic-archive'
+            root.mkdir()
+            (root / 'diaries.normalized.json').write_text(json.dumps({'diaries': [
+                {'id': 'fixture', 'note_date': '2024-01-02', 'diary_type': 'gratitude_diary',
+                 'original_text': 'synthetic searchable diary'}]}), encoding='utf-8')
+            headers = {'X-Hope-Desktop': key, 'Content-Type': 'application/json', 'X-Hope-Client': 'react'}
+            with urlopen(Request(base + '/search/query', data=json.dumps({'root': str(root), 'query': 'searchable'}).encode(), headers=headers), timeout=10) as response:
+                assert json.load(response)['total'] == 1
+            with urlopen(Request(base + '/ai/presets', data=b'{}', headers=headers), timeout=5) as response:
+                assert len(json.load(response)['presets']) == 5
+            # Presets do not read OS credentials or contact any AI provider.
             # Readiness includes validation of both bundled protocol constants.
             # Do not trigger a real SMS or login request during packaging.
             process.stdin.write('shutdown\n'); process.stdin.flush()
             assert process.wait(timeout=10) == 0
-            print('PASS: frozen backend startup, HTTP, writable profile, bundled protocol readiness, owner isolation and clean shutdown.')
+            print('PASS: frozen backend startup, HTTP, writable profile, bundled protocol readiness, owner isolation, FTS5 search, AI presets and clean shutdown.')
         finally:
             if process.poll() is None:
                 process.kill(); process.wait(timeout=10)
