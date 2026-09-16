@@ -2,7 +2,13 @@ import { useEffect, useState } from "react"
 import { request } from "@/lib/api"
 import { Button } from "@/components/ui/button"
 
-type Preset = { id: string; label: string; baseUrl: string; models: string[] }
+type Preset = {
+  id: string
+  label: string
+  baseUrl: string
+  models: string[]
+  discovery?: boolean
+}
 type Metadata = {
   provider: string
   configured: boolean
@@ -18,6 +24,7 @@ function ProviderForm({ preset }: { preset: Preset }) {
   const [busy, setBusy] = useState(true)
   const [message, setMessage] = useState("")
   const [error, setError] = useState("")
+  const [discovered, setDiscovered] = useState<string[]>([])
   useEffect(() => {
     let active = true
     request<Metadata>("/ai/status", { provider: preset.id })
@@ -105,7 +112,7 @@ function ProviderForm({ preset }: { preset: Preset }) {
             onChange={(e) => setModel(e.target.value)}
           />
           <datalist id="ai-model-presets">
-            {preset.models.map((m) => (
+            {[...new Set([...preset.models, ...discovered])].map((m) => (
               <option key={m} value={m} />
             ))}
           </datalist>
@@ -128,7 +135,39 @@ function ProviderForm({ preset }: { preset: Preset }) {
           />
         </label>
         <div className="flex flex-wrap gap-3">
-          <Button variant="outline" onClick={() => void act("test")}>
+          <Button
+            variant="outline"
+            disabled={preset.discovery === false}
+            onClick={async () => {
+              setBusy(true)
+              setError("")
+              const apiKey = key
+              setKey("")
+              try {
+                const result = await request<{ models: string[] }>(
+                  "/ai/models",
+                  { provider: preset.id, baseUrl, model, apiKey }
+                )
+                setDiscovered(result.models)
+                setMessage(
+                  `发现 ${result.models.length} 个模型，可在模型名称中选择。`
+                )
+              } catch (cause) {
+                setError(
+                  cause instanceof Error ? cause.message : "模型发现失败。"
+                )
+              } finally {
+                setBusy(false)
+              }
+            }}
+          >
+            获取模型列表
+          </Button>
+          <Button
+            variant="outline"
+            disabled={preset.discovery === false}
+            onClick={() => void act("test")}
+          >
             测试连接
           </Button>
           <Button onClick={() => void act("save")}>保存</Button>
@@ -142,6 +181,8 @@ function ProviderForm({ preset }: { preset: Preset }) {
         </div>
       </fieldset>
       <p className="text-xs text-muted-foreground">
+        {preset.discovery === false &&
+          "此服务商暂不提供列表发现与只读连接测试，请使用预设或官方控制台的模型 / 接入点 ID。"}
         测试仅读取所选服务商的模型列表，不发送日记、不调用生成。测试不会自动保存新密钥。
       </p>
       <div aria-live="polite">
@@ -177,7 +218,7 @@ export function AISettingsPage() {
   const preset = presets.find((p) => p.id === selected)
   return (
     <main className="mx-auto max-w-3xl space-y-6 p-8">
-      <h1 className="text-3xl font-semibold">AI 设置</h1>
+      <h1 className="text-3xl font-semibold">AI API 设置</h1>
       <p className="text-sm leading-6 text-muted-foreground">
         使用你自己的第三方模型 API Key。本机 Windows
         凭据管理器保存密钥，调用时只发送到所选服务商。未来分析会将所选日记内容发送至该服务商；Hope
@@ -191,6 +232,7 @@ export function AISettingsPage() {
       <label className="grid gap-2 text-sm">
         服务商
         <select
+          aria-label="服务商"
           className={input}
           value={selected}
           onChange={(e) => setSelected(e.target.value)}

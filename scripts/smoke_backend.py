@@ -50,7 +50,7 @@ def main():
             with urlopen(Request(base + '/search/query', data=json.dumps({'root': str(root), 'query': 'searchable'}).encode(), headers=headers), timeout=10) as response:
                 assert json.load(response)['total'] == 1
             with urlopen(Request(base + '/ai/presets', data=b'{}', headers=headers), timeout=5) as response:
-                assert len(json.load(response)['presets']) == 5
+                assert len(json.load(response)['presets']) == 11
             # Presets do not read OS credentials or contact any AI provider.
             # Readiness includes validation of both bundled protocol constants.
             # Do not trigger a real SMS or login request during packaging.
@@ -59,7 +59,15 @@ def main():
             print('PASS: frozen backend startup, HTTP, writable profile, bundled protocol readiness, owner isolation, FTS5 search, AI presets and clean shutdown.')
         finally:
             if process.poll() is None:
-                process.kill(); process.wait(timeout=10)
+                try:
+                    process.stdin.write('shutdown\n'); process.stdin.flush()
+                    process.stdin.close()
+                    process.wait(timeout=10)
+                except (OSError, subprocess.TimeoutExpired):
+                    if os.name == 'nt':
+                        subprocess.run(['taskkill', '/PID', str(process.pid), '/T', '/F'], capture_output=True)
+                    else: process.kill()
+                    process.wait(timeout=10)
 
 
 if __name__ == '__main__':

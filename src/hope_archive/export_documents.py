@@ -18,6 +18,7 @@ class ExportFormat(str, Enum):
     TEX = 'tex'
     PDF = 'pdf'
     DOCX = 'docx'
+    TXT = 'txt'
 
 
 def fit_image(width, height, max_width=450, max_height=600):
@@ -97,7 +98,9 @@ def render_tex(items, path):
     parts = [r'\documentclass[UTF8,fontset=fandol]{ctexart}', r'\usepackage[a4paper,margin=25mm]{geometry}',
              r'\usepackage{graphicx}', r'\setlength{\parindent}{0pt}', r'\begin{document}']
     for kind, value in items:
-        if kind == 'image':
+        if kind == 'page':
+            parts.append(r'\newpage')
+        elif kind == 'image':
             data, _ = value
             name = hashlib.sha256(data).hexdigest() + '.png'
             write_exclusive(path.parent / 'assets' / name, data)
@@ -127,7 +130,9 @@ def render_docx(items):
     doc.core_properties.last_modified_by = 'Hope Archive'
     doc.core_properties.created = doc.core_properties.modified = datetime(2000, 1, 1)
     for kind, value in items:
-        if kind == 'image':
+        if kind == 'page':
+            doc.add_page_break()
+        elif kind == 'image':
             data, (width, height) = value
             doc.add_picture(BytesIO(data), width=Pt(width), height=Pt(height))
         elif kind == 'heading':
@@ -151,7 +156,7 @@ def render_pdf(items):
     from reportlab.pdfbase.ttfonts import TTFont
     from reportlab.pdfbase.cidfonts import UnicodeCIDFont
     from reportlab.lib.styles import ParagraphStyle
-    from reportlab.platypus import SimpleDocTemplate, Paragraph, Image as PDFImage, Spacer
+    from reportlab.platypus import SimpleDocTemplate, Paragraph, Image as PDFImage, Spacer, PageBreak
     font = 'HopeChinese'
     if font not in pdfmetrics.getRegisteredFontNames():
         system_font = Path(os.environ.get('WINDIR', 'C:/Windows')) / 'Fonts/simsun.ttc'
@@ -164,7 +169,9 @@ def render_pdf(items):
     heading = ParagraphStyle('Heading', parent=regular, fontSize=16, leading=23, spaceAfter=14)
     story = []
     for kind, value in items:
-        if kind == 'image':
+        if kind == 'page':
+            story.append(PageBreak())
+        elif kind == 'image':
             data, (width, height) = value
             story.extend([PDFImage(BytesIO(data), width=width, height=height), Spacer(1, 10)])
         else:
@@ -173,6 +180,35 @@ def render_pdf(items):
     SimpleDocTemplate(target, pagesize=(595.28, 841.89), rightMargin=72, leftMargin=72,
                       topMargin=72, bottomMargin=72, invariant=1, title='Hope Archive', author='Hope Archive').build(story)
     return target.getvalue()
+
+
+def render_items(items, path, format):
+    """Shared output renderers for diaries, opened capsules and editable OCR pages."""
+    format = ExportFormat(format)
+    if format == ExportFormat.TEX: return render_tex(items, path)
+    if format == ExportFormat.PDF: return render_pdf(items)
+    if format == ExportFormat.DOCX: return render_docx(items)
+    return '\n\n'.join(('\f' if format == ExportFormat.TXT else '---') if kind == 'page'
+        else ('# ' if kind == 'heading' and format == ExportFormat.MARKDOWN else '') + str(value)
+        for kind, value in items if kind != 'image').encode('utf-8')
+
+
+def export_pages(pages, output, format, title='识图文字'):
+    import uuid
+    if not isinstance(pages, list) or not 1 <= len(pages) <= 200:
+        raise ValueError('没有可导出的页面。')
+    items = []
+    for index, page in enumerate(pages):
+        if not isinstance(page, dict) or not isinstance(page.get('text'), str) or len(page['text']) > 500_000:
+            raise ValueError('页面内容无效。')
+        if index: items.append(('page', ''))
+        items.extend([('heading', f'{title} · {index + 1}'), ('text', page['text'])])
+    format = ExportFormat(format)
+    suffix = 'md' if format == ExportFormat.MARKDOWN else format.value
+    path = Path(output) / f'{title}_{datetime.now():%Y%m%d-%H%M%S}_{uuid.uuid4().hex[:10]}.{suffix}'
+    path.parent.mkdir(parents=True, exist_ok=True)
+    write_exclusive(path, render_items(items, path, format))
+    return {'path': str(path), 'pages': len(pages)}
 
 
 def export_document(document, manifest, archive, output_dir, format='markdown'):
@@ -189,7 +225,7 @@ def export_document(document, manifest, archive, output_dir, format='markdown'):
                 raise ValueError('Duplicate diary')
             seen.add(path)
             items = list(blocks(diary, manifest, archive))
-            data = render_tex(items, path) if format == ExportFormat.TEX else render_pdf(items) if format == ExportFormat.PDF else render_docx(items)
+            data = render_items(items, path, format)
             stats['generated' if write_exclusive(path, data) else 'skipped'] += 1
         except (OSError, ValueError, TypeError):
             stats['failed'] += 1  # Never log diary content or private paths.
@@ -225,7 +261,7 @@ def export_range(document, manifest, archive, output_dir, format, nickname, begi
             data = '\n---\n\n'.join(render_diary(d, manifest, archive, path) for d in document['diaries']).encode('utf-8')
         else:
             items = [block for d in document['diaries'] for block in blocks(d, manifest, archive)]
-            data = render_tex(items, path) if format == ExportFormat.TEX else render_pdf(items) if format == ExportFormat.PDF else render_docx(items)
+            data = render_items(items, path, format)
         stats['generated' if write_exclusive(path, data) else 'skipped'] = 1
     except (OSError, ValueError, TypeError):
         stats['failed'] = 1

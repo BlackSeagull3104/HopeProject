@@ -12,10 +12,16 @@ from .secure_store import WindowsCredentialStore
 # Convenience hints only; users can always enter another model identifier.
 # Official compatibility references and verification date: docs/SEARCH_AI.md.
 PRESETS = {
-    'openai': {'label': 'OpenAI', 'baseUrl': 'https://api.openai.com/v1', 'models': ['gpt-4.1-mini', 'gpt-4.1']},
+    'openai': {'label': 'OpenAI', 'baseUrl': 'https://api.openai.com/v1', 'models': ['gpt-4.1', 'gpt-4.1-mini']},
+    'anthropic': {'label': 'Anthropic', 'baseUrl': 'https://api.anthropic.com/v1', 'models': ['claude-sonnet-4-6', 'claude-haiku-4-5-20251001']},
     'deepseek': {'label': 'DeepSeek', 'baseUrl': 'https://api.deepseek.com', 'models': ['deepseek-flash', 'deepseek-v4-pro']},
     'gemini': {'label': 'Gemini', 'baseUrl': 'https://generativelanguage.googleapis.com/v1beta/openai', 'models': ['gemini-3.8-flash']},
     'openrouter': {'label': 'OpenRouter', 'baseUrl': 'https://openrouter.ai/api/v1', 'models': ['openai/gpt-4.1-mini']},
+    'qwen': {'label': 'Qwen / 阿里云百炼', 'baseUrl': 'https://dashscope.aliyuncs.com/compatible-mode/v1', 'models': ['qwen-plus', 'qwen3.8-max']},
+    'zhipu': {'label': '智谱 / GLM', 'baseUrl': 'https://open.bigmodel.cn/api/paas/v4', 'models': ['glm-4.7'], 'discovery': False},
+    'doubao': {'label': '豆包 / 火山引擎', 'baseUrl': 'https://ark.cn-beijing.volces.com/api/v3', 'models': ['doubao-seed-2-0-lite-260215'], 'discovery': False},
+    'moonshot': {'label': 'Moonshot / Kimi', 'baseUrl': 'https://api.moonshot.cn/v1', 'models': ['kimi-k3', 'kimi-k2.6']},
+    'siliconflow': {'label': '硅基流动', 'baseUrl': 'https://api.siliconflow.cn/v1', 'models': ['Pro/deepseek-ai/DeepSeek-R1']},
     'custom': {'label': 'Custom OpenAI-Compatible API', 'baseUrl': '', 'models': []},
 }
 
@@ -61,9 +67,12 @@ class OpenAICompatibleProvider(AIProvider):
         self._key = key
 
     def _request(self, suffix, payload=None):
+        headers = {'Authorization': 'Bearer ' + self._key, 'Content-Type': 'application/json', 'Accept': 'application/json'}
+        if self.config['provider'] == 'anthropic':
+            headers = {'x-api-key': self._key, 'anthropic-version': '2023-06-01', 'Content-Type': 'application/json', 'Accept': 'application/json'}
         request = Request(self.config['baseUrl'] + suffix,
             data=json.dumps(payload).encode('utf-8') if payload is not None else None,
-            headers={'Authorization': 'Bearer ' + self._key, 'Content-Type': 'application/json', 'Accept': 'application/json'})
+            headers=headers)
         try:
             with build_opener(_NoAuthRedirect()).open(request, timeout=20) as response:
                 body = response.read(2 * 1024 * 1024 + 1)
@@ -80,11 +89,17 @@ class OpenAICompatibleProvider(AIProvider):
         except (ValueError, UnicodeError, TypeError):
             raise AIError('服务商响应格式不兼容。') from None
 
-    def test_connection(self):
+    def list_models(self):
+        if PRESETS[self.config['provider']].get('discovery') is False:
+            raise AIError('此服务商暂未接入模型列表发现，请使用官方预设或控制台的模型 / 接入点 ID。')
         result = self._request('/models')
         models = result.get('data')
         if not isinstance(models, list): raise AIError('服务商未返回兼容的模型列表。')
-        available = any(isinstance(item, dict) and item.get('id') == self.config['model'] for item in models)
+        return sorted({item['id'] for item in models if isinstance(item, dict) and isinstance(item.get('id'), str)
+                       and re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9._:/@+-]{0,199}', item['id'])})[:2000]
+
+    def test_connection(self):
+        available = self.config['model'] in self.list_models()
         return {'success': True, 'modelListed': available,
                 'message': '连接成功，所选模型在列表中；尚未执行生成测试。' if available else '连接成功，但列表中未找到所选模型，请确认模型名称；尚未执行生成测试。'}
 
@@ -92,6 +107,12 @@ class OpenAICompatibleProvider(AIProvider):
         # Future backend-only entry point. Deliberately not exposed by local API.
         if not isinstance(messages, list) or not messages or any(not isinstance(m, dict) or set(m) != {'role', 'content'} or m['role'] not in ('system', 'user', 'assistant') or not isinstance(m['content'], str) for m in messages):
             raise AIError('消息格式无效。')
+        if self.config['provider'] == 'anthropic':
+            system = '\n\n'.join(m['content'] for m in messages if m['role'] == 'system')
+            result = self._request('/messages', {'model': self.config['model'], 'max_tokens': 1024,
+                'messages': [m for m in messages if m['role'] != 'system'], **({'system': system} if system else {})})
+            try: return '\n'.join(b['text'] for b in result['content'] if b.get('type') == 'text')
+            except (KeyError, TypeError): raise AIError('模型未返回有效文本。') from None
         result = self._request('/chat/completions', {'model': self.config['model'], 'messages': messages, 'stream': False})
         try:
             value = result['choices'][0]['message']['content']
@@ -154,3 +175,8 @@ class AISettings:
     def test(self, body):
         with self.lock: config, key = self._resolve(body)
         return self.provider_factory(config, key).test_connection()
+
+    def models(self, body):
+        with self.lock:
+            config, key = self._resolve(dict(body, model=body.get('model') or 'discovery'))
+        return {'models': self.provider_factory(config, key).list_models()}

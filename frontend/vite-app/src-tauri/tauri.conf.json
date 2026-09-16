@@ -32,6 +32,9 @@
     "externalBin": [
       "binaries/hope-archive-backend"
     ],
+    "resources": {
+      "binaries/ocr-runtime/": "ocr-runtime/"
+    },
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",

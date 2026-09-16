@@ -177,6 +177,23 @@ async fn desktop_request(
                 | "/ai/save"
                 | "/ai/delete"
                 | "/ai/test"
+                | "/ai/models"
+                | "/settings/read"
+                | "/settings/save"
+                | "/library/preview"
+                | "/library/media"
+                | "/library/download"
+                | "/library/export"
+                | "/library/search/query"
+                | "/library/search/detail"
+                | "/library/search/rebuild"
+                | "/library/capsules"
+                | "/library/capsules/update"
+                | "/library/capsules/export"
+                | "/ocr/start"
+                | "/ocr/status"
+                | "/ocr/cancel"
+                | "/ocr/export"
                 | "/diaries/preview"
                 | "/diaries/preview/media"
                 | "/capsules/list"
@@ -199,7 +216,8 @@ async fn desktop_request(
     let url = format!("http://127.0.0.1:{}{}", backend.port, path);
     let mut request = if let Some(body) = body {
         let bytes = serde_json::to_vec(&body).map_err(|_| "请求格式无效。")?;
-        if bytes.len() > 16384 {
+        let limit = if path == "/ocr/start" { 64 * 1024 * 1024 } else if path == "/ocr/export" { 4 * 1024 * 1024 } else { 16384 };
+        if bytes.len() > limit {
             return Err("请求过大。".into());
         }
         backend

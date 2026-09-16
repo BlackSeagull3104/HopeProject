@@ -56,6 +56,8 @@ def identity(entry):
 
 def fetch_page(user_id, status, offset, raw_path):
     status = CapsuleStatus(status)
+    if status != CapsuleStatus.OPENED:
+        raise CapsuleError('仅归档已经开启的时间胶囊。')
     if not user_id or type(offset) is not int or offset < 0:
         raise CapsuleError('时间胶囊分页参数无效。')
     data = request_data('hopeService/getHopesV5', {
@@ -172,6 +174,8 @@ class CapsuleArchive:
 
     def list(self, status, offset):
         status = CapsuleStatus(status)
+        if status != CapsuleStatus.OPENED:
+            raise CapsuleError('仅归档已经开启的时间胶囊。')
         cursor = self.cursors.get(status)
         if offset != 0 and (not cursor or offset != cursor['offset']):
             raise CapsuleError('请按列表顺序加载下一页。')
@@ -179,7 +183,7 @@ class CapsuleArchive:
         ids = {identity(e) for e in entries}
         if offset and (cursor['total'] != total or ids & cursor['ids']):
             raise CapsuleError('列表在分页期间发生变化，请重新加载。')
-        normalized = [normalize(e, self.user_id) for e in entries]
+        normalized = [e for e in (normalize(raw, self.user_id) for raw in entries) if e['status'] == 'opened']
         for entry in normalized:
             self.entries[entry['id']] = entry
         self.save()

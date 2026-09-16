@@ -42,7 +42,7 @@ class DocumentExportTests(unittest.TestCase):
                 suffix = 'md' if format.value == 'markdown' else format.value
                 path = target / f'2024/01/2024-01-01_7.{suffix}'
                 self.assertTrue(path.is_file())
-                if format.value in ('markdown', 'tex'):
+                if format.value in ('markdown', 'tex', 'txt'):
                     text = path.read_text(encoding='utf-8')
                     for expected in ('2024-01-01', '合成日记', '留言测试', ('心情' if format.value == 'markdown' else '情绪'), '天气'):
                         self.assertIn(expected, text)

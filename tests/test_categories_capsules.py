@@ -49,8 +49,11 @@ class CapsuleTests(unittest.TestCase):
         self.transport = patch.object(capsules, 'urlopen', side_effect=AssertionError('Unexpected network')).start()
         self.addCleanup(patch.stopall)
 
-    def test_list_requests_both_statuses_offset_and_storage(self):
-        for status, raw, size, order in [('unopened',1,4,1), ('opened',2,20,2)]:
+    def test_list_requests_opened_only_offset_and_storage(self):
+        with self.assertRaises(capsules.CapsuleError): self.archive.list('unopened', 0)
+        with self.assertRaises(capsules.CapsuleError): capsules.fetch_page('fixture-user', 'unopened', 0, self.root/'unused.json')
+        self.transport.assert_not_called()
+        for status, raw, size, order in [('opened',2,20,2)]:
             self.transport.side_effect = [response({'datas': [entry(status=raw)], 'totalCount': 2}), response({'list': [entry('fixture-2',raw)], 'total':2})]
             page = self.archive.list(status, 0)
             self.assertTrue(page['hasMore']); self.assertEqual(page['nextOffset'], 1)
@@ -60,7 +63,7 @@ class CapsuleTests(unittest.TestCase):
             self.assertEqual(request.method, 'POST'); self.assertEqual(request.data, b'')
             self.assertTrue(urlsplit(request.full_url).path.endswith('/hopeService/getHopesV5'))
             self.assertEqual(parse_qs(urlsplit(request.full_url).query), {'userId':['fixture-user'], 'openStatus':[str(raw)], 'beginIndex':['1'], 'perPageCount':[str(size)], 'type':['1'], 'orderType':[str(order)]})
-        self.assertEqual(len(list((self.archive.root/'raw/capsules').glob('*.json'))), 4)
+        self.assertEqual(len(list((self.archive.root/'raw/capsules').glob('*.json'))), 2)
         doc = json.loads((self.archive.root/'processed/capsules.normalized.json').read_text())
         self.assertIn('capsules', doc); self.assertNotIn('diaries', doc)
         self.assertNotIn('never-copy', json.dumps(doc))

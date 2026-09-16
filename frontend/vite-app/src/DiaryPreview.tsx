@@ -27,14 +27,14 @@ type Diary = {
 type Result = { diaries: Diary[] }
 type State = { key: string; loading: boolean; error?: string; data?: Result }
 
-function MediaPreview({
+export function MediaPreview({
   media,
   kind,
   session,
 }: {
   media: Media
   kind: string
-  session: Session
+  session?: Session
 }) {
   const [source, setSource] = useState("")
   const [error, setError] = useState("")
@@ -62,7 +62,7 @@ function MediaPreview({
               setSource(
                 (
                   await request<{ source: string }>(
-                    "/diaries/preview/media",
+                    "/library/media",
                     { key: media.key },
                     session
                   )
@@ -100,18 +100,24 @@ function MediaPreview({
   )
 }
 
-export function DiaryPreview({ session }: { session: Session }) {
-  const [date, setDate] = useState(todayString)
+export function DiaryPreview({
+  session,
+  onArchive,
+}: {
+  session?: Session
+  onArchive?: () => void
+}) {
+  const [date, setDate] = useState("")
   const [category, setCategory] = useState<DiaryType>("all")
   const [revision, setRevision] = useState(0)
   const [state, setState] = useState<State>({ key: "", loading: true })
   const key = `${date}/${category}/${revision}`
   useEffect(() => {
     let active = true
-    if (!date || date > todayString()) return
+    if (date > todayString()) return
     const timer = window.setTimeout(() => {
       request<Result>(
-        "/diaries/preview",
+        "/library/preview",
         { date, diaryType: category },
         session
       )
@@ -133,14 +139,14 @@ export function DiaryPreview({ session }: { session: Session }) {
       window.clearTimeout(timer)
     }
   }, [date, category, key, session])
-  const invalid = !date || date > todayString()
+  const invalid = date > todayString()
   const current = state.key === key ? state : { key, loading: true }
   return (
     <main className="mx-auto max-w-5xl space-y-6 p-8 lg:p-12">
       <div>
         <h2 className="text-3xl font-semibold">日记预览</h2>
         <p className="mt-3 text-sm text-muted-foreground">
-          按日期从 Hope 读取，不需要先下载归档，也不会自动保存日记。
+          浏览已下载到本地的日记，无需联网。日期留空可按时间浏览全部本地日记。
         </p>
       </div>
       <div className="flex flex-wrap items-end gap-4">
@@ -193,8 +199,13 @@ export function DiaryPreview({ session }: { session: Session }) {
           </p>
         ) : current.data?.diaries.length === 0 ? (
           <div className="rounded-xl border p-12 text-center">
-            <p className="text-2xl">木有日记哦~</p>
-            <p className="mt-3 text-muted-foreground">换一天看看吧</p>
+            <p className="text-2xl">还没有本地日记。</p>
+            <p className="mt-3 text-muted-foreground">
+              此筛选范围内没有已下载日记。
+            </p>
+            <Button variant="outline" onClick={onArchive}>
+              前往日记归档
+            </Button>
           </div>
         ) : (
           current.data?.diaries.map((diary, index) => (

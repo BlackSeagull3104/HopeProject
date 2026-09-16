@@ -1,6 +1,5 @@
 import { useState } from "react"
-import { request } from "@/lib/api"
-import { pickDirectory } from "@/lib/export"
+import { request, type Session } from "@/lib/api"
 import { DIARY_TYPES } from "@/lib/diary"
 import { Button } from "@/components/ui/button"
 import { highlightedParts } from "@/lib/search"
@@ -23,8 +22,13 @@ function label(item: Item | Detail) {
     : DIARY_TYPES.find((t) => t.value === item.diaryType)?.label ||
         "未知日记类型"
 }
-export function SearchPage({ defaultRoot }: { defaultRoot: string }) {
-  const [root, setRoot] = useState(defaultRoot)
+export function SearchPage({
+  session,
+  onArchive,
+}: {
+  session?: Session
+  onArchive: () => void
+}) {
   const [query, setQuery] = useState("")
   const [beginDate, setBegin] = useState("")
   const [endDate, setEnd] = useState("")
@@ -35,7 +39,6 @@ export function SearchPage({ defaultRoot }: { defaultRoot: string }) {
   const [message, setMessage] = useState("")
   const [results, setResults] = useState<Results | null>(null)
   const [applied, setApplied] = useState({
-    root: "",
     query: "",
     beginDate: "",
     endDate: "",
@@ -50,13 +53,17 @@ export function SearchPage({ defaultRoot }: { defaultRoot: string }) {
     setDetail(null)
     const filters = more
       ? applied
-      : { root, query, beginDate, endDate, diaryType, contentType }
+      : { query, beginDate, endDate, diaryType, contentType }
     if (!more) setResults(null)
     try {
-      const data = await request<Results>("/search/query", {
-        ...filters,
-        offset: more ? results?.nextOffset : 0,
-      })
+      const data = await request<Results>(
+        "/library/search/query",
+        {
+          ...filters,
+          offset: more ? results?.nextOffset : 0,
+        },
+        session
+      )
       setApplied(filters)
       setResults(
         more && results
@@ -73,35 +80,12 @@ export function SearchPage({ defaultRoot }: { defaultRoot: string }) {
     <main className="mx-auto max-w-5xl space-y-6 p-8">
       <h1 className="text-3xl font-semibold">本地搜索</h1>
       <p className="text-sm text-muted-foreground">
-        搜索已保存的归档，无需联网或登录
-        Hope。时间胶囊按创建日期筛选，仅检索已开启内容。
+        搜索已下载到本地的日记，无需联网。尚未归档的日记不会出现在搜索结果中。时间胶囊仅检索已开启内容。
       </p>
+      <Button variant="ghost" onClick={onArchive}>
+        前往日记归档
+      </Button>
       <fieldset disabled={busy} className="space-y-4">
-        <label className="grid gap-2 text-sm">
-          归档根目录
-          <div className="flex gap-2">
-            <input
-              className={`${input} flex-1`}
-              value={root}
-              onChange={(e) => setRoot(e.target.value)}
-            />
-            <Button
-              variant="outline"
-              onClick={async () => {
-                try {
-                  const p = await pickDirectory(root)
-                  if (p) setRoot(p)
-                } catch (cause) {
-                  setError(
-                    cause instanceof Error ? cause.message : "目录选择失败。"
-                  )
-                }
-              }}
-            >
-              ...
-            </Button>
-          </div>
-        </label>
         <form
           className="flex gap-2"
           onSubmit={(e) => {
@@ -117,7 +101,7 @@ export function SearchPage({ defaultRoot }: { defaultRoot: string }) {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
           />
-          <Button disabled={!query.trim() || !root}>搜索</Button>
+          <Button type="submit" disabled={!query.trim()}>搜索</Button>
         </form>
         <div className="flex flex-wrap gap-3">
           <label className="grid gap-1 text-sm">
@@ -169,7 +153,6 @@ export function SearchPage({ defaultRoot }: { defaultRoot: string }) {
         </div>
         <Button
           variant="outline"
-          disabled={!root}
           onClick={async () => {
             setBusy(true)
             setError("")
@@ -177,8 +160,9 @@ export function SearchPage({ defaultRoot }: { defaultRoot: string }) {
             setDetail(null)
             try {
               const result = await request<{ entries: number }>(
-                "/search/rebuild",
-                { root }
+                "/library/search/rebuild",
+                {},
+                session
               )
               setMessage(`索引已重建，共 ${result.entries} 条。`)
             } catch (cause) {
@@ -208,7 +192,7 @@ export function SearchPage({ defaultRoot }: { defaultRoot: string }) {
           </p>
         ) : (
           <p className="text-muted-foreground">
-            选择归档目录，输入关键词开始搜索。
+            输入关键词开始搜索，日期留空表示不限日期。
           </p>
         )}
       </div>
@@ -223,10 +207,13 @@ export function SearchPage({ defaultRoot }: { defaultRoot: string }) {
               setError("")
               try {
                 setDetail(
-                  await request<Detail>("/search/detail", {
-                    root: applied.root,
-                    id: item.id,
-                  })
+                  await request<Detail>(
+                    "/library/search/detail",
+                    {
+                      id: item.id,
+                    },
+                    session
+                  )
                 )
               } catch (cause) {
                 setError(cause instanceof Error ? cause.message : "读取失败。")

@@ -228,16 +228,20 @@ class LocalService:
             if path in ('/ai/status', '/ai/delete'):
                 fields(body, ['provider'])
                 return self.ai_settings.metadata(body['provider']) if path == '/ai/status' else self.ai_settings.delete(body['provider'])
+            if path == '/ai/models': return self.ai_settings.models(body)
             return self.ai_settings.save(body) if path == '/ai/save' else self.ai_settings.test(body)
         except (search.SearchError, ai.AIError, SecretStoreError) as exc:
             raise RequestError(400, str(exc)) from None
 
     def dispatch(self, method, path, body, token):
+        if path.startswith(('/settings/', '/library/', '/ocr/')):
+            from .product_api import dispatch
+            return dispatch(self, method, path, body, token)
         if method == 'GET' and path == '/health':
             return {'status': 'ok', 'defaultOutputDir': str(PROJECT / 'data')}
         if method == 'POST' and path in ('/auth/send-code', '/auth/login/code', '/auth/login/password'):
             return self.authenticate(path.rsplit('/', 1)[1], body)
-        if method == 'POST' and path in ('/search/query', '/search/detail', '/search/rebuild', '/ai/presets', '/ai/status', '/ai/save', '/ai/delete', '/ai/test'):
+        if method == 'POST' and path in ('/search/query', '/search/detail', '/search/rebuild', '/ai/presets', '/ai/status', '/ai/save', '/ai/delete', '/ai/test', '/ai/models'):
             return self.local_features(path, body)
         self.session(token)
         if method == 'POST' and path in ('/capsules/list', '/capsules/detail', '/capsules/media'):
@@ -296,7 +300,8 @@ class Handler(BaseHTTPRequestHandler):
             body = None
             if self.command == 'POST':
                 length = int(self.headers.get('Content-Length', '0'))
-                if not 0 < length <= 16384:
+                limit = 64 * 1024 * 1024 if self.path == '/ocr/start' else 4 * 1024 * 1024 if self.path in ('/ocr/export',) else 16384
+                if not 0 < length <= limit:
                     raise RequestError(413, '请求大小无效。')
                 # Consume the bounded body before rejecting headers: closing with
                 # unread data can reset the connection on Windows.

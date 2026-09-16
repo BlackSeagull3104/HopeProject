@@ -6,6 +6,7 @@ export const EXPORT_FORMATS = [
   { value: "tex", label: "TeX (.tex)" },
   { value: "pdf", label: "PDF (.pdf)" },
   { value: "docx", label: "Word (.docx)" },
+  { value: "txt", label: "纯文本 (.txt)" },
 ] as const
 export type ExportFormat = (typeof EXPORT_FORMATS)[number]["value"]
 

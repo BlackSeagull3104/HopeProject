@@ -81,6 +81,7 @@ tokens*.json
 /frontend/vite-app/src-tauri/target/
 /frontend/vite-app/src-tauri/gen/
 /frontend/vite-app/src-tauri/binaries/*.exe
+/frontend/vite-app/src-tauri/binaries/ocr-runtime/
 
 # Private capsule snapshots and local search cache
 hope-capsules-*/

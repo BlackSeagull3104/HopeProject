@@ -66,6 +66,8 @@ def main():
             if command.strip() == 'shutdown':
                 break
     finally:
+        if hasattr(server.service, 'ocr_jobs'):
+            server.service.ocr_jobs.close()
         server.shutdown()
         server.server_close()
         server.service.pool.shutdown(wait=True)
