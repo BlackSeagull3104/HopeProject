@@ -24,6 +24,7 @@ function ProviderForm({ preset }: { preset: Preset }) {
   const [busy, setBusy] = useState(true)
   const [message, setMessage] = useState("")
   const [error, setError] = useState("")
+  const [custom, setCustom] = useState(!preset.models.length)
   const [discovered, setDiscovered] = useState<string[]>([])
   useEffect(() => {
     let active = true
@@ -31,6 +32,7 @@ function ProviderForm({ preset }: { preset: Preset }) {
       .then((data) => {
         if (active) {
           setModel(data.model)
+          setCustom(!preset.models.includes(data.model))
           setBase(data.baseUrl)
           setConfigured(data.configured)
         }
@@ -47,7 +49,7 @@ function ProviderForm({ preset }: { preset: Preset }) {
     return () => {
       active = false
     }
-  }, [preset.id])
+  }, [preset.id, preset.models])
   async function act(action: "save" | "test" | "delete") {
     setBusy(true)
     setError("")
@@ -66,6 +68,7 @@ function ProviderForm({ preset }: { preset: Preset }) {
         setConfigured(result.configured)
         if (action === "delete") {
           setModel(result.model)
+          setCustom(!preset.models.includes(result.model))
           setBase(result.baseUrl)
         }
       }
@@ -104,21 +107,39 @@ function ProviderForm({ preset }: { preset: Preset }) {
           </label>
         )}
         <label className="grid gap-2 text-sm">
-          模型名称
-          <input
+          模型
+          <select
+            aria-label="模型"
             className={input}
-            list="ai-model-presets"
-            value={model}
-            onChange={(e) => setModel(e.target.value)}
-          />
-          <datalist id="ai-model-presets">
-            {[...new Set([...preset.models, ...discovered])].map((m) => (
-              <option key={m} value={m} />
-            ))}
-          </datalist>
+            value={custom ? "__custom__" : model}
+            onChange={(e) => {
+              const next = e.target.value
+              setCustom(next === "__custom__")
+              if (next !== "__custom__") setModel(next)
+            }}
+          >
+            {!!discovered.length && (
+              <optgroup label="账户可用模型">
+                {discovered.map((id) => <option key={id} value={id}>{id}</option>)}
+              </optgroup>
+            )}
+            <optgroup label="常用预设">
+              {preset.models.filter((id) => !discovered.includes(id)).map((id) => (
+                <option key={id} value={id}>{id}</option>
+              ))}
+            </optgroup>
+            <option value="__custom__">自定义模型 ID…</option>
+          </select>
         </label>
+        {custom && (
+          <label className="grid gap-2 text-sm">
+            自定义模型 ID
+            <input aria-label="自定义模型 ID" className={input} value={model}
+              onChange={(e) => setModel(e.target.value)} spellCheck={false} />
+          </label>
+        )}
         <p className="text-xs text-muted-foreground">
-          可选择预设或直接输入新模型名称，是否可用以服务商账户权限为准。
+          配置密钥后可刷新账户可用模型。预设不代表账户已开通；所有服务商均可填写自定义模型 ID。
         </p>
         <label className="grid gap-2 text-sm">
           API Key
@@ -137,12 +158,12 @@ function ProviderForm({ preset }: { preset: Preset }) {
         <div className="flex flex-wrap gap-3">
           <Button
             variant="outline"
-            disabled={preset.discovery === false}
+            disabled={preset.discovery === false || (!configured && !key.trim())}
             onClick={async () => {
               setBusy(true)
               setError("")
+              setMessage("")
               const apiKey = key
-              setKey("")
               try {
                 const result = await request<{ models: string[] }>(
                   "/ai/models",
@@ -161,11 +182,11 @@ function ProviderForm({ preset }: { preset: Preset }) {
               }
             }}
           >
-            获取模型列表
+            刷新模型列表
           </Button>
           <Button
             variant="outline"
-            disabled={preset.discovery === false}
+            disabled={preset.discovery === false || (!configured && !key.trim())}
             onClick={() => void act("test")}
           >
             测试连接

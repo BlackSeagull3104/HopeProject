@@ -203,6 +203,7 @@ export function OCRPage() {
   const [message, setMessage] = useState("")
   const [error, setError] = useState("")
   const [jobId, setJobId] = useState("")
+  const fileInput = useRef<HTMLInputElement>(null)
   const pending = useRef("")
   const mounted = useRef(true)
   useEffect(() => {
@@ -293,9 +294,15 @@ export function OCRPage() {
     <main className="mx-auto max-w-5xl space-y-6 p-8">
       <h2 className="text-3xl font-semibold">识图转文字</h2>
       <p>本机离线识别中文、英文和混合文字，图片不会发送到 AI 服务商。</p>
-      <label className="grid gap-3">
-        选择图片（PNG、JPG/JPEG、WEBP）
+      <div className="grid gap-3">
+        <p>选择图片（PNG、JPG/JPEG、WEBP）</p>
+        <Button type="button" className="w-fit" disabled={busy}
+          onClick={() => fileInput.current?.click()}>选择文件</Button>
         <input
+          ref={fileInput}
+          aria-label="选择图片文件"
+          className="sr-only"
+          tabIndex={-1}
           type="file"
           multiple
           accept=".png,.jpg,.jpeg,.webp"
@@ -307,7 +314,7 @@ export function OCRPage() {
             setMessage("")
           }}
         />
-      </label>
+      </div>
       <ol className="list-inside list-decimal text-sm">
         {files.map((f, i) => (
           <li key={i}>{f.name}</li>

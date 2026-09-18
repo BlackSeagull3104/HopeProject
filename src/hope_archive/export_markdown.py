@@ -49,15 +49,43 @@ def display_value(value, labels):
     return None  # Numeric enum values alone are not a verified display mapping.
 
 
-def local_media(url, manifest, archive, markdown_path):
+def resolve_media(url, manifest, archive):
+    archive = Path(archive).resolve()
     record = manifest.get('media', {}).get(media_key(url), {})
     local = record.get('local_path')
     if local and record.get('status') in ('downloaded', 'skipped'):
         target = (archive / local).resolve()
-        if target.is_relative_to(archive.resolve()) and target.is_file():
-            relative = quote(Path(os.path.relpath(target, markdown_path.parent)).as_posix(), safe='/.-_')
-            return target, relative
+        if target.is_relative_to(archive) and target.is_file():
+            return target
     return None
+
+
+def local_media(url, manifest, archive, markdown_path):
+    target = resolve_media(url, manifest, archive)
+    if target:
+        relative = quote(Path(os.path.relpath(target, markdown_path.parent)).as_posix(), safe='/.-_')
+        return target, relative
+    return None
+
+
+def portable_media(url, manifest, archive, markdown_path, asset_root=None):
+    """Copy original bytes; content hashes make collisions and shared media deterministic."""
+    source = resolve_media(url, manifest, archive)
+    if source is None:
+        return None
+    try:
+        data = source.read_bytes()
+    except OSError:
+        return None
+    suffix = source.suffix.lower()
+    if not re.fullmatch(r'\.[a-z0-9]{1,10}', suffix):
+        suffix = '.bin'
+    assets = Path(asset_root) if asset_root is not None else markdown_path.parent / 'assets'
+    target = assets / (hashlib.sha256(data).hexdigest() + suffix)
+    from hope_archive.export_documents import write_exclusive
+    write_exclusive(target, data)
+    relative = quote(Path(os.path.relpath(target, markdown_path.parent)).as_posix(), safe='/.-_')
+    return target, relative
 
 
 def image_size(path):
@@ -71,13 +99,13 @@ def image_size(path):
         return None  # Unsupported/corrupt dimensions: leave intrinsic sizing to the viewer.
 
 
-def image_group(urls, manifest, archive, markdown_path):
+def image_group(urls, manifest, archive, markdown_path, asset_root=None):
     columns = 1 if len(urls) == 1 else 3 if len(urls) == 3 else 2
     rendered = []
     for start in range(0, len(urls), columns):
         cells = []
         for url in urls[start:start + columns]:
-            local = local_media(url, manifest, archive, markdown_path)
+            local = portable_media(url, manifest, archive, markdown_path, asset_root)
             size = image_size(local[0]) if local else None
             width_percent = 31 if columns == 3 else 48 if columns == 2 else single_image_width(size)
             width_limit = f'max-width:{size[0]}px;' if size else ''
@@ -128,60 +156,32 @@ def diary_path(diary):
         return Path('unknown') / f'unknown_{identifier}.md'
 
 
-def media_markdown(url, kind, manifest, archive, markdown_path):
-    record = manifest.get('media', {}).get(media_key(url), {})
-    local = record.get('local_path')
-    if local and record.get('status') in ('downloaded', 'skipped'):
-        target = (archive / local).resolve()
-        if target.is_relative_to(archive.resolve()) and target.is_file():
-            relative = quote(Path(os.path.relpath(target, markdown_path.parent)).as_posix(), safe='/.-_')
-            return f'![]({relative})' if kind == 'image' else f'[{kind}]({relative})'
-    # Failed media stays visible, but never loads a remote image automatically.
-    if isinstance(url, str) and urlsplit(url).scheme in ('https', 'http'):
-        link = f'[remote media]({quote(url, safe=":/?=&%.-_~")})'
-    else:
-        link = json.dumps(url, ensure_ascii=False)
-    return f'[Media unavailable locally] {link}'
+def media_markdown(url, kind, manifest, archive, markdown_path, asset_root=None):
+    local = portable_media(url, manifest, archive, markdown_path, asset_root)
+    if local:
+        return f'![]({local[1]})' if kind == 'image' else f'[{kind}]({local[1]})'
+    return '[Media unavailable locally]'
 
 
-def render_diary(diary, manifest, archive, markdown_path):
-    parts = ['# ' + ((diary.get('note_date') or 'Unknown date')[:10])]
-    atmosphere = []
-    for field, label, mapping in [('emotion', '心情', EMOTION_LABELS), ('weather', '天气', WEATHER_LABELS)]:
-        value = display_value(diary.get(field), mapping)
-        if value is not None: atmosphere.append(f'{label}：{value}')
-    if atmosphere: parts.append('　　'.join(atmosphere))
-    content = diary.get('content') or []
-    pending_images = []
+def render_diary(diary, manifest, archive, markdown_path, asset_root=None):
+    from hope_archive.document import diary_blocks
+    markdown_path = Path(markdown_path)
+    parts, pending_images = [], []
     def flush_images():
         if pending_images:
-            parts.append(image_group(pending_images, manifest, archive, markdown_path))
+            parts.append(image_group(pending_images, manifest, archive, markdown_path, asset_root))
             pending_images.clear()
-    for block in content:
-        text = block.get('text')
-        if text is not None and text != '':
-            flush_images()
-            parts.append(text)  # Do not strip, escape, merge or rewrite source text.
-        for media in block.get('media') or []:
-            if block.get('kind') == 'image':
-                pending_images.append(media.get('url'))
-            else:
-                flush_images()
-                parts.append(media_markdown(media.get('url'), block.get('kind', 'unknown'), manifest, archive, markdown_path))
+    for kind, value in diary_blocks(diary):
+        if kind == 'image':
+            pending_images.append(value[1])
+            continue
+        flush_images()
+        if kind == 'heading': parts.append('# ' + value)
+        elif kind in ('title', 'subheading'): parts.append('## ' + value)
+        elif kind == 'comment': parts.append(comment_markdown(*value))
+        elif kind == 'media': parts.append(media_markdown(value[1], value[0], manifest, archive, markdown_path, asset_root))
+        else: parts.append(value)
     flush_images()
-    original = diary.get('original_text')
-    if not any(b.get('text') not in (None, '') or b.get('media') for b in content):
-        if original is not None: parts.append(original)
-    secondary = diary.get('original_text_secondary')
-    if secondary is not None:
-        parts.extend(['## Secondary original text', secondary])
-    for field, kind in [('audio_url', 'audio'), ('video_url', 'video')]:
-        url = (diary.get('legacy_media') or {}).get(field)
-        if url: parts.append(media_markdown(url, kind, manifest, archive, markdown_path))
-    comments = [c for g in diary.get('comments') or [] for c in g.get('items') or []]
-    authors = {c['id']: person_name(c) for c in comments if c.get('id') is not None}
-    if comments: parts.append('## 留言')
-    parts.extend(comment_markdown(c, authors) for c in comments)
     return '\n\n'.join(parts) + '\n'
 
 
@@ -195,7 +195,7 @@ def export_diaries(document, manifest, archive, output_dir=None):
             path = output_dir / diary_path(diary)
             if path in seen: raise ValueError('Duplicate diary output path')
             seen.add(path)
-            text = render_diary(diary, manifest, archive, path)
+            text = render_diary(diary, manifest, archive, path, output_dir / "assets")
             encoded = text.encode('utf-8')
             if path.exists():
                 if path.read_bytes() != encoded:
@@ -215,7 +215,7 @@ def main():
     parser = argparse.ArgumentParser(description='Export local normalized diaries to Markdown.')
     parser.add_argument('--input', type=Path, default=PROJECT / 'data/processed/diaries.normalized.json')
     parser.add_argument('--archive', type=Path, default=PROJECT / 'data/archive')
-    parser.add_argument('--output-dir', type=Path, help='Optional separate Markdown directory; media stays in --archive')
+    parser.add_argument('--output-dir', type=Path, help='Portable Markdown directory, including copied media assets')
     args = parser.parse_args()
     document = json.loads(args.input.read_text(encoding='utf-8'))
     path = args.archive / 'media_manifest.json'

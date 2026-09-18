@@ -44,7 +44,7 @@ class DocumentExportTests(unittest.TestCase):
                 self.assertTrue(path.is_file())
                 if format.value in ('markdown', 'tex', 'txt'):
                     text = path.read_text(encoding='utf-8')
-                    for expected in ('2024-01-01', '合成日记', '留言测试', ('心情' if format.value == 'markdown' else '情绪'), '天气'):
+                    for expected in ('2024-01-01', '合成日记', '留言测试', '心情', '天气'):
                         self.assertIn(expected, text)
                     self.assertNotIn(str(self.root), text)
                 elif format.value == 'docx':
@@ -52,7 +52,7 @@ class DocumentExportTests(unittest.TestCase):
                     doc = Document(path)
                     text = '\n'.join(p.text for p in doc.paragraphs)
                     self.assertIn('留言测试', text)
-                    self.assertGreater(len(doc.inline_shapes), 3)
+                    self.assertEqual(len(doc.inline_shapes), 3)
                     for shape in doc.inline_shapes:
                         self.assertLessEqual(shape.width.pt, 450.01)
                         self.assertLessEqual(shape.height.pt, 600.01)
@@ -68,12 +68,12 @@ class DocumentExportTests(unittest.TestCase):
                 self.assertEqual(path.read_bytes(), original)
         self.assertEqual(self.document, before)
 
-    def test_image_ratio_long_split_and_tex_escaping(self):
+    def test_image_ratio_long_preserved_and_tex_escaping(self):
         w, h = exports.fit_image(400, 800)
         self.assertAlmostEqual(w / h, .5)
         parts = list(exports.image_parts(self.root / 'image-2.png'))
         self.assertEqual(sum(size[1] for _, size in parts), 1400)
-        self.assertGreater(len(parts), 1)
+        self.assertEqual(len(parts), 1)
         escaped = exports.tex_escape(r'\input{bad}&%$#_^~')
         self.assertNotIn(r'\input{bad}', escaped)
         self.assertIn(r'\textbackslash{}', escaped)

@@ -3,14 +3,14 @@ from abc import ABC, abstractmethod
 import json
 import re
 import threading
-from urllib.parse import urlsplit
+from urllib.parse import urlsplit, urlencode
 from urllib.request import Request, build_opener
 from urllib.error import HTTPError, URLError
 from .auth import _NoAuthRedirect
 from .secure_store import WindowsCredentialStore
 
 # Convenience hints only; users can always enter another model identifier.
-# Official compatibility references and verification date: docs/SEARCH_AI.md.
+# Official compatibility references and verification date: docs/AI_PROVIDER_PRESETS.md.
 PRESETS = {
     'openai': {'label': 'OpenAI', 'baseUrl': 'https://api.openai.com/v1', 'models': ['gpt-4.1', 'gpt-4.1-mini']},
     'anthropic': {'label': 'Anthropic', 'baseUrl': 'https://api.anthropic.com/v1', 'models': ['claude-sonnet-4-6', 'claude-haiku-4-5-20251001']},
@@ -18,8 +18,8 @@ PRESETS = {
     'gemini': {'label': 'Gemini', 'baseUrl': 'https://generativelanguage.googleapis.com/v1beta/openai', 'models': ['gemini-3.8-flash']},
     'openrouter': {'label': 'OpenRouter', 'baseUrl': 'https://openrouter.ai/api/v1', 'models': ['openai/gpt-4.1-mini']},
     'qwen': {'label': 'Qwen / 阿里云百炼', 'baseUrl': 'https://dashscope.aliyuncs.com/compatible-mode/v1', 'models': ['qwen-plus', 'qwen3.8-max']},
-    'zhipu': {'label': '智谱 / GLM', 'baseUrl': 'https://open.bigmodel.cn/api/paas/v4', 'models': ['glm-4.7'], 'discovery': False},
-    'doubao': {'label': '豆包 / 火山引擎', 'baseUrl': 'https://ark.cn-beijing.volces.com/api/v3', 'models': ['doubao-seed-2-0-lite-260215'], 'discovery': False},
+    'zhipu': {'label': '智谱 / GLM', 'baseUrl': 'https://open.bigmodel.cn/api/paas/v4', 'models': ['glm-5.3', 'glm-5.2', 'glm-5.3-flash', 'glm-5.3-flashx'], 'discovery': False},
+    'doubao': {'label': '豆包 / 火山引擎', 'baseUrl': 'https://ark.cn-beijing.volces.com/api/v3', 'models': ['doubao-seed-2-0-lite-260215', 'doubao-seed-2-0-mini-260428', 'doubao-seed-2-0-pro-260215', 'doubao-seed-2-1-pro-260915', 'doubao-seed-2-1-turbo-260628'], 'discovery': False},
     'moonshot': {'label': 'Moonshot / Kimi', 'baseUrl': 'https://api.moonshot.cn/v1', 'models': ['kimi-k3', 'kimi-k2.6']},
     'siliconflow': {'label': '硅基流动', 'baseUrl': 'https://api.siliconflow.cn/v1', 'models': ['Pro/deepseek-ai/DeepSeek-R1']},
     'custom': {'label': 'Custom OpenAI-Compatible API', 'baseUrl': '', 'models': []},
@@ -92,11 +92,25 @@ class OpenAICompatibleProvider(AIProvider):
     def list_models(self):
         if PRESETS[self.config['provider']].get('discovery') is False:
             raise AIError('此服务商暂未接入模型列表发现，请使用官方预设或控制台的模型 / 接入点 ID。')
-        result = self._request('/models')
-        models = result.get('data')
-        if not isinstance(models, list): raise AIError('服务商未返回兼容的模型列表。')
-        return sorted({item['id'] for item in models if isinstance(item, dict) and isinstance(item.get('id'), str)
-                       and re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9._:/@+-]{0,199}', item['id'])})[:2000]
+        models, cursors = set(), set()
+        suffix = '/models'
+        for _ in range(20):
+            result = self._request(suffix)
+            entries = result.get('data')
+            if not isinstance(entries, list):
+                raise AIError('服务商未返回兼容的模型列表。')
+            models.update(item['id'] for item in entries if isinstance(item, dict) and isinstance(item.get('id'), str)
+                          and re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9._:/@+-]{0,199}', item['id']))
+            if len(models) > 2000:
+                raise AIError('服务商模型列表过大，请手动输入模型 ID。')
+            if self.config['provider'] != 'anthropic' or not result.get('has_more'):
+                return sorted(models)
+            cursor = result.get('last_id')
+            if not isinstance(cursor, str) or not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9._:/@+-]{0,199}', cursor) or cursor in cursors:
+                raise AIError('模型列表分页无效，请稍后重试或手动输入模型 ID。')
+            cursors.add(cursor)
+            suffix = '/models?' + urlencode({'after_id': cursor, 'limit': 1000})
+        raise AIError('模型列表分页过多，请手动输入模型 ID。')
 
     def test_connection(self):
         available = self.config['model'] in self.list_models()

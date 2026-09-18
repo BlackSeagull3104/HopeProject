@@ -1,4 +1,4 @@
-"""Local normalized-diary exporters; Markdown remains the existing implementation."""
+"""Shared diary presentation with bounded, offline document renderers."""
 from datetime import datetime
 from enum import Enum
 from html import escape
@@ -10,7 +10,7 @@ import zipfile
 
 from PIL import Image, ImageOps
 from .export_markdown import (diary_path, display_value, EMOTION_LABELS, WEATHER_LABELS,
-                              local_media, person_name, export_diaries)
+                              resolve_media, person_name, export_diaries)
 
 
 class ExportFormat(str, Enum):
@@ -29,51 +29,38 @@ def fit_image(width, height, max_width=450, max_height=600):
 
 
 def image_parts(path):
-    """Normalize orientation and split very tall screenshots without stretching."""
+    """One oriented image, never slice a screenshot into oversized page fragments."""
     with Image.open(path) as source:
-        image = ImageOps.exif_transpose(source).convert('RGB')
-        width, height = image.size
-        step = max(1, int(width * 1.6)) if height / width > 3 else height
-        for top in range(0, height, step):
-            part = image.crop((0, top, width, min(top + step, height)))
-            data = BytesIO()
-            part.save(data, format='PNG')
-            yield data.getvalue(), part.size
+        image = ImageOps.exif_transpose(source)
+        if image.mode not in ('RGB', 'RGBA'):
+            image = image.convert('RGB')
+        data = BytesIO()
+        image.save(data, format='PNG')
+        yield data.getvalue(), image.size
 
 
 def blocks(diary, manifest, archive):
-    yield 'heading', (diary.get('note_date') or '日期未知')[:10]
-    if diary.get('title'):
-        yield 'text', str(diary['title'])
-    for field, label, mapping in [('emotion', '情绪', EMOTION_LABELS), ('weather', '天气', WEATHER_LABELS)]:
-        value = display_value(diary.get(field), mapping)
-        if value is not None:
-            yield 'text', f'{label}：{value.replace(" ☀️", "")}'
-    content = diary.get('content') or []
-    for block in content:
-        if block.get('text'):
-            yield 'text', block['text']
-        for media in block.get('media') or []:
-            local = local_media(media.get('url'), manifest, archive, archive / 'unused.md')
-            if block.get('kind') == 'image' and local:
-                for data, size in image_parts(local[0]):
-                    yield 'image', (data, fit_image(*size))
+    from .document import diary_blocks
+    for kind, value in diary_blocks(diary):
+        if kind in ('image', 'media'):
+            media_kind, url = value
+            local = resolve_media(url, manifest, archive)
+            if kind == 'image' and local:
+                try:
+                    yield from (('image', part) for part in image_parts(local))
+                except (OSError, ValueError, SyntaxError, Image.DecompressionBombError):
+                    yield 'missing', '[本地媒体不可用]'
             else:
-                yield 'text', '[本地媒体不可用]' if not local else f'[{block.get("kind", "媒体")}：{local[0].name}]'
-    if not any(b.get('text') or b.get('media') for b in content) and diary.get('original_text'):
-        yield 'text', diary['original_text']
-    if diary.get('original_text_secondary'):
-        yield 'text', diary['original_text_secondary']
-    comments = [c for group in diary.get('comments') or [] for c in group.get('items') or []]
-    authors = {c.get('id'): person_name(c) for c in comments if c.get('id') is not None}
-    if comments:
-        yield 'heading', '留言'
-    for comment in comments:
-        author = person_name(comment) or '作者未知'
-        reply = ''
-        if comment.get('reply_to_id') is not None:
-            reply = ' 回复 ' + (comment.get('to_name') or authors.get(comment['reply_to_id']) or '未知对象')
-        yield 'text', f'{author}{reply}：{comment.get("text") or ""}'
+                yield 'missing' if not local else 'text', '[本地媒体不可用]' if not local else f'[{media_kind}：{local.name}]'
+        elif kind == 'comment':
+            comment, authors = value
+            author = person_name(comment) or '作者未知'
+            reply = ''
+            if comment.get('reply_to_id') is not None:
+                reply = ' 回复 ' + (comment.get('to_name') or authors.get(comment['reply_to_id']) or '未知对象')
+            yield 'comment', f'{author}{reply}：{comment.get("text") or ""}'
+        else:
+            yield kind, value
 
 
 def tex_escape(text):
@@ -105,7 +92,7 @@ def render_tex(items, path):
             name = hashlib.sha256(data).hexdigest() + '.png'
             write_exclusive(path.parent / 'assets' / name, data)
             parts.append(r'\par\begin{center}\includegraphics[width=\linewidth,height=0.78\textheight,keepaspectratio]{assets/' + name + r'}\end{center}\par')
-        elif kind == 'heading':
+        elif kind in ('heading', 'title', 'subheading'):
             parts.append(r'\section*{' + tex_escape(value) + '}')
         else:
             parts.append('\n\n'.join(tex_escape(line) + r'\par' for line in str(value).splitlines()))
@@ -133,10 +120,11 @@ def render_docx(items):
         if kind == 'page':
             doc.add_page_break()
         elif kind == 'image':
-            data, (width, height) = value
+            data, size = value
+            width, height = fit_image(*size)
             doc.add_picture(BytesIO(data), width=Pt(width), height=Pt(height))
-        elif kind == 'heading':
-            doc.add_heading(value, level=1)
+        elif kind in ('heading', 'title', 'subheading'):
+            doc.add_heading(value, level=1 if kind == 'heading' else 2)
         else:
             doc.add_paragraph(str(value))
     result = BytesIO()
@@ -151,12 +139,45 @@ def render_docx(items):
     return stable.getvalue()
 
 
+PDF_PAGE = (595.28, 841.89)
+PDF_MARGIN = 56
+PDF_BODY_WIDTH = PDF_PAGE[0] - 2 * PDF_MARGIN - 12  # ReportLab frame padding.
+PDF_IMAGE_GAP = 12
+
+
+def pdf_image_rows(images, available_width=PDF_BODY_WIDTH):
+    """Return ordered rows of (bytes, display size), in points, without cropping."""
+    def compatible(size):
+        w, h = size
+        return .85 <= w / h <= 2.2 and w * .75 >= 144
+    rows, index = [], 0
+    while index < len(images):
+        paired = (index + 1 < len(images) and compatible(images[index][1])
+                  and compatible(images[index + 1][1]) and (available_width - PDF_IMAGE_GAP) / 2 >= 144)
+        batch = images[index:index + (2 if paired else 1)]
+        row = []
+        for data, (w, h) in batch:
+            if paired:
+                width, height = (available_width - PDF_IMAGE_GAP) / 2, 200
+            elif h / w >= 2.5:
+                width, height = available_width * .38, 260
+            elif w / h < .85:
+                width, height = available_width * .46, 300
+            else:
+                width, height = available_width * (.65 if w / h > 1.35 else .55), 260
+            row.append((data, fit_image(w * .75, h * .75, width, height)))
+        rows.append(row)
+        index += len(batch)
+    return rows
+
+
 def render_pdf(items):
     from reportlab.pdfbase import pdfmetrics
     from reportlab.pdfbase.ttfonts import TTFont
     from reportlab.pdfbase.cidfonts import UnicodeCIDFont
     from reportlab.lib.styles import ParagraphStyle
-    from reportlab.platypus import SimpleDocTemplate, Paragraph, Image as PDFImage, Spacer, PageBreak
+    from reportlab.lib.colors import HexColor
+    from reportlab.platypus import SimpleDocTemplate, Paragraph, Image as PDFImage, Spacer, PageBreak, Table, TableStyle
     font = 'HopeChinese'
     if font not in pdfmetrics.getRegisteredFontNames():
         system_font = Path(os.environ.get('WINDIR', 'C:/Windows')) / 'Fonts/simsun.ttc'
@@ -164,21 +185,50 @@ def render_pdf(items):
             pdfmetrics.registerFont(TTFont(font, str(system_font), subfontIndex=0))
         else:
             font = 'STSong-Light'
-            pdfmetrics.registerFont(UnicodeCIDFont(font))
-    regular = ParagraphStyle('Diary', fontName=font, fontSize=11, leading=17, spaceAfter=9, wordWrap='CJK')
-    heading = ParagraphStyle('Heading', parent=regular, fontSize=16, leading=23, spaceAfter=14)
-    story = []
+            if font not in pdfmetrics.getRegisteredFontNames():
+                pdfmetrics.registerFont(UnicodeCIDFont(font))
+    regular = ParagraphStyle('Diary', fontName=font, fontSize=10.5, leading=17, spaceAfter=9, wordWrap='CJK')
+    styles = {
+        'heading': ParagraphStyle('Date', parent=regular, fontSize=17, leading=23, spaceBefore=16, spaceAfter=10, keepWithNext=True),
+        'title': ParagraphStyle('Title', parent=regular, fontSize=13, leading=19, spaceAfter=10, keepWithNext=True),
+        'subheading': ParagraphStyle('Section', parent=regular, fontSize=11.5, leading=18, spaceBefore=10, keepWithNext=True),
+        'metadata': ParagraphStyle('Metadata', parent=regular, fontSize=9, textColor=HexColor('#626262')),
+        'comment': ParagraphStyle('Comment', parent=regular, fontSize=9.5, leading=15, leftIndent=12, textColor=HexColor('#555555')),
+        'missing': ParagraphStyle('Missing', parent=regular, fontSize=9, textColor=HexColor('#666666')),
+    }
+    story, pending = [], []
+    def flush_images():
+        for row in pdf_image_rows(pending):
+            images = [PDFImage(BytesIO(data), width=size[0], height=size[1], hAlign='CENTER') for data, size in row]
+            if len(images) == 1:
+                story.append(images[0])
+            else:
+                cell = (PDF_BODY_WIDTH - PDF_IMAGE_GAP) / 2
+                table = Table([[images[0], '', images[1]]], colWidths=[cell, PDF_IMAGE_GAP, cell], hAlign='CENTER')
+                table.setStyle(TableStyle([('VALIGN',(0,0),(-1,-1),'TOP'), ('ALIGN',(0,0),(-1,-1),'CENTER'),
+                    ('LEFTPADDING',(0,0),(-1,-1),0), ('RIGHTPADDING',(0,0),(-1,-1),0),
+                    ('TOPPADDING',(0,0),(-1,-1),0), ('BOTTOMPADDING',(0,0),(-1,-1),0)]))
+                story.append(table)
+            story.append(Spacer(1, PDF_IMAGE_GAP))
+        pending.clear()
     for kind, value in items:
+        if kind == 'image':
+            pending.append(value)
+            continue
+        flush_images()
         if kind == 'page':
             story.append(PageBreak())
-        elif kind == 'image':
-            data, (width, height) = value
-            story.extend([PDFImage(BytesIO(data), width=width, height=height), Spacer(1, 10)])
         else:
-            story.append(Paragraph(escape(str(value)).replace('\n', '<br/>'), heading if kind == 'heading' else regular))
+            # Paragraphs remain literal diary text; never interpret user HTML.
+            text = str(value).replace(' ☀️', '') if kind == 'metadata' else str(value)
+            paragraphs = text.split('\n\n') if kind in ('text', 'comment') else [text]
+            for paragraph in paragraphs:
+                if paragraph:
+                    story.append(Paragraph(escape(paragraph).replace('\n', '<br/>'), styles.get(kind, regular)))
+    flush_images()
     target = BytesIO()
-    SimpleDocTemplate(target, pagesize=(595.28, 841.89), rightMargin=72, leftMargin=72,
-                      topMargin=72, bottomMargin=72, invariant=1, title='Hope Archive', author='Hope Archive').build(story)
+    SimpleDocTemplate(target, pagesize=PDF_PAGE, rightMargin=PDF_MARGIN, leftMargin=PDF_MARGIN,
+                      topMargin=54, bottomMargin=54, invariant=1, title='Hope Archive', author='Hope Archive').build(story)
     return target.getvalue()
 
 
