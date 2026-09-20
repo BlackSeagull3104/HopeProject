@@ -16,7 +16,7 @@ const navigation = [
   ["settings", "设置"],
 ] as const
 type Page = (typeof navigation)[number][0]
-type Preferences = { exportRoot: string; exportConfigured: boolean }
+type Preferences = { exportRoot: string; exportConfigured: boolean; migrationWarning?: string }
 
 function Login({
   onLogin,
@@ -240,7 +240,7 @@ function OpenedCapsules({
       {!!items.length && (
         <section className="grid gap-3">
           <FormatPicker value={format} onChange={setFormat} />
-          <p>保存到导出路径下的 capsules 文件夹。</p>
+          <p>保存到归档目录下的 capsules 文件夹。</p>
           <Button
             disabled={busy}
             onClick={async () => {
@@ -307,7 +307,7 @@ export function App() {
       setOnboarding(false)
       setError("")
     } catch (c) {
-      setError(c instanceof Error ? c.message : "无法保存导出路径。")
+      setError(c instanceof Error ? c.message : "无法保存归档目录。")
     }
   }
   return (
@@ -365,6 +365,7 @@ export function App() {
             key={session?.token || "offline"}
             session={session ?? undefined}
             onArchive={() => setPage("archive")}
+            onLogin={() => setLogin(true)}
           />
         )}
         {page === "archive" && (
@@ -392,17 +393,17 @@ export function App() {
         {page === "settings" && (
           <div>
             <section className="mx-auto max-w-3xl space-y-5 p-8">
-              <h2 className="text-3xl font-semibold">导出路径</h2>
+              <h2 className="text-3xl font-semibold">归档目录</h2>
               <p className="break-all">
-                {preferences.exportRoot || "尚未设置导出位置。"}
+                {preferences.exportRoot || "尚未设置归档目录。"}
               </p>
               <Button onClick={() => void chooseDirectory()}>
-                选择 / 更改导出文件夹
+                选择 / 更改归档目录
               </Button>
               <p>
-                日记、时间胶囊和识图文字分别保存到 diaries、capsules、ocr
-                文件夹。
+                Hope Archive 会自动管理 backup 中的备份数据与 archive 中的可阅读文档。
               </p>
+              {preferences.migrationWarning && <p role="alert">{preferences.migrationWarning}</p>}
             </section>
             <AISettingsPage />
           </div>
@@ -421,14 +422,14 @@ export function App() {
         <section
           role="dialog"
           aria-modal="true"
-          aria-label="选择导出位置"
+          aria-label="选择归档目录"
           className="fixed inset-0 z-50 grid place-items-center bg-background/95 p-8"
         >
           <div className="max-w-lg space-y-5 rounded-2xl border bg-card p-8">
-            <h2 className="text-2xl font-semibold">选择导出位置</h2>
+            <h2 className="text-2xl font-semibold">选择归档目录</h2>
             <p>
               Hope Archive
-              会将日记、时间胶囊和识图生成的文件保存到这里。之后可以在「设置」中修改。
+              会自动管理备份数据与可阅读文档。之后可以在「设置」中修改。
             </p>
             <Button onClick={() => void chooseDirectory()}>选择文件夹</Button>
             <Button variant="ghost" onClick={() => setOnboarding(false)}>

@@ -41,7 +41,7 @@ export function ArchivePage({
   const [beginDate, setBegin] = useState(todayString().slice(0, 8) + "01")
   const [endDate, setEnd] = useState(todayString())
   const [diaryType, setType] = useState("all")
-  const [format, setFormat] = useState<ExportFormat>("markdown")
+  const [formats, setFormats] = useState<ExportFormat[]>(["markdown"])
   const [busy, setBusy] = useState(false)
   const [message, setMessage] = useState("")
   const [error, setError] = useState("")
@@ -75,41 +75,21 @@ export function ArchivePage({
       clearTimeout(timer)
     }
   }, [jobId, session])
-  async function run(download: boolean) {
-    if (download && !session) {
-      onLogin()
-      return
-    }
-    setBusy(true)
-    setError("")
-    setMessage("")
+  async function run() {
+    if (!session) { onLogin(); return }
+    setBusy(true); setError(""); setMessage("")
     try {
-      if (download) {
-        const job = await request<{ jobId: string }>(
-          "/library/download",
-          { beginDate, endDate, diaryType },
-          session!
-        )
-        setJobId(job.jobId)
-        setMessage("正在下载 / 更新日记…")
-      } else {
-        const result = await request<{ path: string }>(
-          "/library/export",
-          { beginDate, endDate, diaryType, format },
-          session ?? undefined
-        )
-        setMessage(`已导出：${result.path}`)
-        setBusy(false)
-      }
+      const job = await request<{ jobId: string }>("/library/archive", { beginDate, endDate, diaryType, formats }, session)
+      setJobId(job.jobId)
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "操作失败。")
+      setError(cause instanceof Error ? cause.message : "归档未完成。")
       setBusy(false)
     }
   }
   return (
     <main className="mx-auto max-w-5xl space-y-6 p-8">
       <h2 className="text-3xl font-semibold">日记归档</h2>
-      <p>下载或更新自己的日记，再从本地归档导出。导出不会重新下载。</p>
+      <p>获取所选云端日记、更新备份并生成可阅读文档，一次完成。</p>
       <fieldset disabled={busy} className="grid gap-5 rounded-xl border p-6">
         <label className="grid gap-2">
           日记类型
@@ -149,29 +129,13 @@ export function ArchivePage({
           </label>
         </div>
         <section className="space-y-3">
-          <h3 className="font-semibold">下载 / 更新日记</h3>
-          <p className="text-sm text-muted-foreground">
-            本地归档由应用自动管理。
-          </p>
-          <Button
-            disabled={!beginDate || !endDate}
-            onClick={() => void run(true)}
-          >
-            {session ? "下载 / 更新日记" : "登录后下载"}
-          </Button>
-        </section>
-        <section className="space-y-3 border-t pt-5">
-          <h3 className="font-semibold">导出日记</h3>
-          <FormatPicker value={format} onChange={setFormat} />
-          <p className="text-sm text-muted-foreground">
-            保存到「设置 → 导出路径」下的 diaries 文件夹。
-          </p>
-          <Button
-            disabled={!beginDate || !endDate}
-            onClick={() => void run(false)}
-          >
-            导出已下载日记
-          </Button>
+          <h3 className="font-semibold">归档格式（可多选）</h3>
+          {EXPORT_FORMATS.map((f) => <label key={f.value} className="flex items-center gap-3">
+            <input type="checkbox" checked={formats.includes(f.value)} onChange={(e) => setFormats(e.target.checked ? [...formats, f.value] : formats.filter(v => v !== f.value))} />
+            {f.label}{["pdf", "docx"].includes(f.value) ? "（同时保留 Markdown）" : ""}
+          </label>)}
+          <p className="text-sm text-muted-foreground">备份保存到 backup，可阅读文档保存到 archive。可在设置中更改归档目录。</p>
+          <Button disabled={!beginDate || !endDate || !formats.length} onClick={() => void run()}>归档日记</Button>
         </section>
       </fieldset>
       <p aria-live="polite" className="break-all">
@@ -372,7 +336,7 @@ export function OCRPage() {
       {!!pages.length && (
         <section className="grid gap-4">
           <FormatPicker value={format} onChange={setFormat} />
-          <p>保存到「设置 → 导出路径」下的 ocr 文件夹。</p>
+          <p>保存到「设置 → 归档目录」下的 archive/ocr 文件夹。</p>
           <Button
             disabled={busy || !pages.some((p) => p.text.trim())}
             onClick={async () => {

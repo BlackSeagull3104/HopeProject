@@ -247,10 +247,10 @@ class LocalService:
         if method == 'POST' and path in ('/capsules/list', '/capsules/detail', '/capsules/media'):
             return self.capsule_request(path, body, token)
         if method == 'POST' and path == '/diaries/preview':
-            fields(body, ['date'], ['diaryType'])
+            fields(body, ['date'], ['diaryType','page'])
             user = self.session(token)
             try:
-                document = preview.for_date(user['userId'], body['date'], body.get('diaryType', 'all'))
+                document = preview.page_for_date(user['userId'], body['date'], body.get('diaryType', 'all'),body['page']) if 'page' in body else preview.for_date(user['userId'], body['date'], body.get('diaryType', 'all'))
                 refs = preview.media_references(document)
                 with self.lock:
                     cache = user.setdefault('preview_media', {})

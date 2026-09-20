@@ -11,9 +11,9 @@ from .export_markdown import render_diary, display_value, EMOTION_LABELS, WEATHE
 
 
 class Library:
-    def __init__(self, home):
+    def __init__(self, home, root=None):
         self.home = Path(home)
-        self.root = self.home / 'archives'
+        self.root = Path(root) if root is not None else self.home / 'archives'
         self.root.mkdir(parents=True, exist_ok=True)
 
     def account_root(self, user_id):
@@ -27,7 +27,7 @@ class Library:
         for source in sorted(root.rglob('diaries.normalized.json'), key=lambda p: (p.stat().st_mtime_ns, str(p))):
             if not source.resolve().is_relative_to(root.resolve()): continue
             data = json.loads(source.read_text(encoding='utf-8-sig'))
-            archive = source.parent.parent / 'archive'
+            archive = source.parent.parent if source.parent.name == 'normalized' else source.parent.parent / 'archive'
             for entry in data.get('diaries', []):
                 if user_id:
                     owner = (entry.get('author') or {}).get('id')

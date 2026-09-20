@@ -29,14 +29,14 @@ class Settings:
 
     def save(self, root):
         if not isinstance(root, str) or not root.strip() or not Path(root).is_absolute():
-            raise ValueError('请选择完整的导出文件夹路径。')
+            raise ValueError('请选择完整的归档文件夹路径。')
         target = Path(root).resolve()
         if getattr(sys, 'frozen', False) and target.is_relative_to(Path(sys.executable).resolve().parent):
-            raise ValueError('请选择应用安装目录以外的导出位置。')
+            raise ValueError('请选择应用安装目录以外的归档目录。')
         if target == self.home.resolve() or target.is_relative_to((self.home/'archives').resolve()):
-            raise ValueError('请选择内部归档目录以外的导出位置。')
+            raise ValueError('请选择内部归档目录以外的归档目录。')
         target.mkdir(parents=True, exist_ok=True)
-        if not target.is_dir(): raise ValueError('导出路径必须是文件夹。')
+        if not target.is_dir(): raise ValueError('归档目录必须是文件夹。')
         with self.lock:
             self.home.mkdir(parents=True, exist_ok=True)
             temporary = self.path.with_suffix('.tmp')
@@ -48,7 +48,18 @@ class Settings:
         if area not in ('diaries', 'capsules', 'ocr'): raise ValueError('无效导出类型。')
         current = self.read()
         if not current['exportConfigured']:
-            raise ValueError('请先在「设置 → 导出路径」选择导出位置。')
-        target = Path(current['exportRoot']) / area
+            raise ValueError('请先在「设置 → 归档目录」选择归档目录。')
+        target = Path(current['exportRoot']) / 'archive'
+        if area != 'diaries': target = target / area
         target.mkdir(parents=True, exist_ok=True)
         return target
+
+    def backup(self):
+        current = self.read()
+        if not current['exportConfigured']: raise ValueError('请先在「设置 → 归档目录」选择文件夹。')
+        root = Path(current['exportRoot']) / 'backup'
+        root.mkdir(parents=True, exist_ok=True)
+        readme = root/'README.txt'
+        if not readme.exists():
+            readme.write_text('此文件夹包含 Hope Archive 的原始备份数据和媒体文件，用于恢复及重新生成归档文档。除非明确知道用途，否则不建议手动修改或删除。\n',encoding='utf-8')
+        return root

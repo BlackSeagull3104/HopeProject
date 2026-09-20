@@ -183,6 +183,7 @@ async fn desktop_request(
                 | "/library/preview"
                 | "/library/media"
                 | "/library/download"
+                | "/library/archive"
                 | "/library/export"
                 | "/library/search/query"
                 | "/library/search/detail"

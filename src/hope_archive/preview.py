@@ -9,6 +9,30 @@ class PreviewError(Exception):
     pass
 
 
+def page_for_date(user_id, selected, category='all', page=1):
+    try: application.validate_date_range(selected,selected)
+    except application.ArchiveError as exc: raise PreviewError(str(exc)) from None
+    if type(page) is not int or not 1 <= page <= 10000: raise PreviewError('分页位置无效。')
+    try:
+        response=api.fetch_diary_page(user_id,selected,selected,note_type=filter_value(category),page_num=page,page_size=20,raw_dir=None,timeout=20)
+        if not isinstance(response,dict) or response.get('status',1)!=1: raise ValueError()
+        data=response.get('datas',{})
+        total,entries=data.get('total'),data.get('list')
+        if type(total) is not int or total<0 or not isinstance(entries,list) or len(entries)>20: raise ValueError()
+        document=normalize_diaries(entries)
+        from .diary_types import normalized_type
+        for diary in document['diaries']:
+            owner=diary['author'].get('id')
+            if owner is not None and str(owner)!=str(user_id): raise ValueError()
+            if (diary.get('note_date') or '')[:10]!=selected: raise ValueError()
+            if category!='all' and normalized_type(diary)!=category: raise ValueError()
+            diary['emotion_label']=display_value(diary['emotion'],EMOTION_LABELS)
+            diary['weather_label']=display_value(diary['weather'],WEATHER_LABELS)
+        return dict(document,page=page,total=total,hasMore=bool(entries) and page*20<total)
+    except (api.DiaryAPIError,OSError): raise PreviewError('云端预览暂不可用，请检查网络连接后重试。') from None
+    except (ValueError,TypeError,AttributeError): raise PreviewError('云端预览响应无效，请稍后重试。') from None
+
+
 def for_date(user_id, selected, category='all'):
     application.validate_date_range(selected, selected)
     request_filter = filter_value(category)

@@ -27,7 +27,7 @@ class ProductTests(unittest.TestCase):
         return self.service.dispatch('POST', path, body or {}, token)
 
     def fixture(self, user='a', category='gratitude_diary', day='2024-01-01', text='合成测试 diary'):
-        library = Library(self.root/'profile')
+        library = self.service.library if hasattr(self.service,'library') else Library(self.root/'profile')
         root = library.account_root(user)/'snapshot'
         (root/'processed').mkdir(parents=True,exist_ok=True)
         (root/'archive').mkdir(exist_ok=True)
@@ -44,7 +44,7 @@ class ProductTests(unittest.TestCase):
             self.call('/settings/save',{'exportRoot':str(root)})
             self.assertEqual(Settings(self.root/'profile').read()['exportRoot'],str(root))
             for area in ('diaries','capsules','ocr'):
-                self.assertEqual(Settings(self.root/'profile').destination(area),root/area)
+                self.assertEqual(Settings(self.root/'profile').destination(area),root/'archive' if area=='diaries' else root/'archive'/area)
 
     def test_preview_and_export_are_local_and_account_scoped(self):
         self.fixture()
@@ -53,20 +53,20 @@ class ProductTests(unittest.TestCase):
         self.service.sessions['b']={'userId':'b','expires':time.monotonic()+100}
         self.call('/settings/save',{'exportRoot':str(self.root/'exports')})
         with patch('hope_archive.api.urlopen',side_effect=AssertionError('Network forbidden')):
-            result=self.call('/library/preview',token='a')
+            result=self.service.library.browse({},'a')
             self.assertEqual(len(result['diaries']),1)
             self.assertNotIn('second account',json.dumps(result))
             result=self.call('/library/export',{'beginDate':'2024-01-01','endDate':'2024-01-01','format':'txt'},'a')
-            self.assertEqual(Path(result['path']).parent,self.root/'exports/diaries')
+            self.assertEqual(Path(result['path']).parent,self.root/'exports/archive')
             self.assertIn('合成测试',Path(result['path']).read_text(encoding='utf-8'))
-            self.assertEqual(len(self.call('/library/preview',token='b')['diaries']),1)
+            self.assertEqual(len(self.service.library.browse({},'b')['diaries']),1)
 
     def test_all_diary_types_share_destination(self):
         self.call('/settings/save',{'exportRoot':str(self.root/'exports')})
         for category in ('capsule_diary','gratitude_diary','discovery_diary'):
             self.fixture(category=category)
             r=self.call('/library/export',{'beginDate':'2024-01-01','endDate':'2024-01-01','format':'markdown','diaryType':category})
-            self.assertEqual(Path(r['path']).parent,self.root/'exports/diaries')
+            self.assertEqual(Path(r['path']).parent,self.root/'exports/archive')
 
     def test_optional_date_search_inclusive(self):
         self.fixture()
@@ -77,9 +77,10 @@ class ProductTests(unittest.TestCase):
 
     def test_download_uses_managed_account_root(self):
         self.service.sessions['a']={'userId':'a','expires':time.monotonic()+100}
-        with patch.object(self.service,'start',return_value={'jobId':'synthetic'}) as start:
+        self.call('/settings/save',{'exportRoot':str(self.root/'exports')})
+        with patch.object(self.service.pool,'submit') as start:
             self.call('/library/download',{'beginDate':'2024-01-01','endDate':'2024-01-01'},'a')
-            self.assertTrue(Path(start.call_args.args[1]['outputDir']).is_relative_to(self.root/'profile/archives'))
+            self.assertEqual(start.call_args.args[-2].root,self.root/'exports/backup')
         with self.assertRaises(local_api.RequestError): self.call('/library/download',{'beginDate':'2024-01-01','endDate':'2024-01-01','outputDir':'arbitrary'},'a')
 
     def test_opened_capsule_export_and_reject_unopened(self):
@@ -92,13 +93,14 @@ class ProductTests(unittest.TestCase):
         self.assertEqual(len(self.call('/library/capsules')['items']),1)
         self.call('/settings/save',{'exportRoot':str(self.root/'exports')})
         r=self.call('/library/capsules/export',{'format':'txt'})
-        self.assertEqual(Path(r['path']).parent,self.root/'exports/capsules')
+        self.assertEqual(Path(r['path']).parent,self.root/'exports/archive/capsules')
         self.assertNotIn('must-not-export',Path(r['path']).read_text(encoding='utf-8'))
         with patch.object(capsules,'request_data') as remote:
             with self.assertRaises(capsules.CapsuleError): capsules.fetch_page('a','unopened',0,folder/'unused')
             remote.assert_not_called()
 
     def test_capsule_background_only_fetches_opened_details(self):
+        self.call('/settings/save',{'exportRoot':str(self.root/'exports')})
         self.service.sessions['a']={'userId':'a','expires':time.monotonic()+100}
         opened={'id':'open','user':{'id':'a'},'openStatus':2,'hopeInfo':'opened synthetic body'}
         closed={'id':'closed','user':{'id':'a'},'openStatus':1,'hopeInfo':'not requested'}

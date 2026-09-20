@@ -24,14 +24,16 @@ type Diary = {
     }[]
   }[]
 }
-type Result = { diaries: Diary[] }
+type Result = { diaries: Diary[]; hasMore?: boolean; page?: number }
 type State = { key: string; loading: boolean; error?: string; data?: Result }
 
 export function MediaPreview({
   media,
   kind,
   session,
+  cloud = false,
 }: {
+  cloud?: boolean
   media: Media
   kind: string
   session?: Session
@@ -62,7 +64,7 @@ export function MediaPreview({
               setSource(
                 (
                   await request<{ source: string }>(
-                    "/library/media",
+                    cloud ? "/diaries/preview/media" : "/library/media",
                     { key: media.key },
                     session
                   )
@@ -103,22 +105,25 @@ export function MediaPreview({
 export function DiaryPreview({
   session,
   onArchive,
+  onLogin,
 }: {
   session?: Session
   onArchive?: () => void
+  onLogin?: () => void
 }) {
-  const [date, setDate] = useState("")
+  const [date, setDate] = useState(todayString())
+  const [page, setPage] = useState(1)
   const [category, setCategory] = useState<DiaryType>("all")
   const [revision, setRevision] = useState(0)
   const [state, setState] = useState<State>({ key: "", loading: true })
-  const key = `${date}/${category}/${revision}`
+  const key = `${date}/${category}/${page}/${revision}/${session?.token || ""}`
   useEffect(() => {
     let active = true
-    if (date > todayString()) return
+    if (!session || !date || date > todayString()) return
     const timer = window.setTimeout(() => {
       request<Result>(
-        "/library/preview",
-        { date, diaryType: category },
+        "/diaries/preview",
+        { date, diaryType: category, page },
         session
       )
         .then((data) => {
@@ -138,15 +143,15 @@ export function DiaryPreview({
       active = false
       window.clearTimeout(timer)
     }
-  }, [date, category, key, session])
-  const invalid = date > todayString()
+  }, [date, category, page, key, session])
+  const invalid = !date || date > todayString()
   const current = state.key === key ? state : { key, loading: true }
   return (
     <main className="mx-auto max-w-5xl space-y-6 p-8 lg:p-12">
       <div>
         <h2 className="text-3xl font-semibold">日记预览</h2>
         <p className="mt-3 text-sm text-muted-foreground">
-          浏览已下载到本地的日记，无需联网。日期留空可按时间浏览全部本地日记。
+          浏览 Hope 云端日记，无需先下载到本地。
         </p>
       </div>
       <div className="flex flex-wrap items-end gap-4">
@@ -157,7 +162,7 @@ export function DiaryPreview({
             type="date"
             value={date}
             max={todayString()}
-            onChange={(e) => setDate(e.target.value)}
+            onChange={(e) => { setDate(e.target.value); setPage(1) }}
           />
         </label>
         <label className="grid gap-2 text-sm">
@@ -165,7 +170,7 @@ export function DiaryPreview({
           <select
             className="h-10 rounded-lg border bg-background px-3"
             value={category}
-            onChange={(e) => setCategory(e.target.value as DiaryType)}
+            onChange={(e) => { setCategory(e.target.value as DiaryType); setPage(1) }}
           >
             {DIARY_TYPES.map((t) => (
               <option key={t.value} value={t.value}>
@@ -177,7 +182,7 @@ export function DiaryPreview({
         <Button
           variant="outline"
           onClick={() => setRevision((v) => v + 1)}
-          disabled={invalid || current.loading}
+          disabled={!session || invalid || current.loading}
         >
           刷新
         </Button>
@@ -186,7 +191,9 @@ export function DiaryPreview({
         {date} · 此处预览日记；独立时间胶囊请在“时间胶囊”页面查看。
       </p>
       <div aria-live="polite">
-        {invalid ? (
+        {!session ? (
+          <div><p>请登录 Hope 后浏览云端日记。</p><Button onClick={onLogin}>登录 Hope</Button></div>
+        ) : invalid ? (
           <p role="alert">请选择不晚于今天的有效日期。</p>
         ) : current.loading ? (
           <p>正在读取当天日记…</p>
@@ -199,9 +206,9 @@ export function DiaryPreview({
           </p>
         ) : current.data?.diaries.length === 0 ? (
           <div className="rounded-xl border p-12 text-center">
-            <p className="text-2xl">还没有本地日记。</p>
+            <p className="text-2xl">当天没有此类型的云端日记。</p>
             <p className="mt-3 text-muted-foreground">
-              此筛选范围内没有已下载日记。
+              可以选择其他日期或日记类型。
             </p>
             <Button variant="outline" onClick={onArchive}>
               前往日记归档
@@ -234,6 +241,7 @@ export function DiaryPreview({
                   {block.media.map((media, j) => (
                     <MediaPreview
                       key={j}
+                      cloud
                       media={media}
                       kind={block.kind}
                       session={session}
@@ -270,6 +278,7 @@ export function DiaryPreview({
           ))
         )}
       </div>
+      {session && <div className="flex gap-3"><Button variant="outline" disabled={page === 1 || current.loading} onClick={() => setPage(page - 1)}>上一页</Button><span>第 {page} 页</span><Button variant="outline" disabled={!current.data?.hasMore || current.loading} onClick={() => setPage(page + 1)}>下一页</Button></div>}
     </main>
   )
 }

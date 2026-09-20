@@ -31,7 +31,9 @@
 
 ## Usage
 
-登录后选择日期和导出位置。默认数据目录为 `%LOCALAPPDATA%\HopeArchive`，默认归档在其 `archives` 下。只操作自己的数据。认证信息在当前运行期间使用；导出的个人数据由你在本机管理。
+当前源码（RC4，本地人工验收中，未发布）：登录后可直接按日期和类型预览 Hope 云端日记。选择一个「归档目录」，勾选格式后点击「归档日记」；程序自动更新 `backup/` 备份并生成 `archive/` 可阅读文档。PDF/Word 默认同时保留 Markdown。复制整个 `archive/` 即可带走成品及图片。
+
+设置与可重建搜索索引保存在 `%LOCALAPPDATA%\HopeArchive`。旧版该目录下的 `archives` 会在选择归档目录后安全复制到新备份，原件不删除。目录结构、迁移边界及 PDF 引擎决策见 [RC4 说明](docs/RC4_ARCHITECTURE.md)。上方已发布下载包不代表本地 RC4 已发布。只操作自己的数据；认证信息只在当前运行期间使用。
 
 ## Screenshots
 

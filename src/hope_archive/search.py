@@ -86,29 +86,33 @@ class SearchIndex:
                     if rebuild:
                         db.execute('DELETE FROM search_fts'); db.execute('DELETE FROM entries'); db.execute('DELETE FROM sources')
                     known = dict(db.execute('SELECT path, stamp FROM sources'))
-                    found, changed = set(), 0
-                    # Only canonical normalized files, never raw data, exports or arbitrary JSON.
-                    for name, kind, collection in [('diaries.normalized.json', 'diary', 'diaries'), ('capsules.normalized.json', 'capsule', 'capsules')]:
+                    sources, latest = {}, {}
+                    paths=[]
+                    for name,kind,collection in [('diaries.normalized.json','diary','diaries'),('capsules.normalized.json','capsule','capsules')]:
                         for path in self.root.rglob(name):
-                            if not path.resolve().is_relative_to(self.root): continue
-                            source = str(path.relative_to(self.root)); found.add(source)
-                            stat = path.stat(); stamp = f'{stat.st_mtime_ns}:{stat.st_size}'
-                            if known.get(source) == stamp: continue
-                            data = json.loads(path.read_text(encoding='utf-8-sig'))
-                            if not isinstance(data, dict) or not isinstance(data.get(collection), list): raise ValueError('Invalid normalized archive')
-                            rows = [record(e, kind) for e in data[collection]]
-                            db.execute('DELETE FROM search_fts WHERE rowid IN (SELECT rowid FROM entries WHERE source=?)', (source,))
-                            db.execute('DELETE FROM entries WHERE source=?', (source,))
-                            for i, row in enumerate(rows):
+                            if path.resolve().is_relative_to(self.root): paths.append((path,kind,collection))
+                    paths.sort(key=lambda item:(item[0].stat().st_mtime_ns,str(item[0])))
+                    for path,kind,collection in paths:
+                        source=str(path.relative_to(self.root));stat=path.stat()
+                        sources[source]=f'{stat.st_mtime_ns}:{stat.st_size}'
+                    changed=sum(known.get(k)!=v for k,v in sources.items())+len(known.keys()-sources.keys())
+                    if changed or rebuild:
+                        for path,kind,collection in paths:
+                            source=str(path.relative_to(self.root))
+                            data=json.loads(path.read_text(encoding='utf-8-sig'))
+                            if not isinstance(data,dict) or not isinstance(data.get(collection),list): raise ValueError('Invalid normalized archive')
+                            for entry in data[collection]:
+                                row=record(entry,kind)
                                 if row is None: continue
-                                identity = hashlib.sha256(f'{source}/{i}/{row["originalId"]}'.encode()).hexdigest()
-                                cursor = db.execute('INSERT INTO entries VALUES(?,?,?,?,?,?,?,?)',
-                                    (identity, source, row['date'], row['category'], row['kind'], row['title'], row['body'], row['originalId']))
-                                db.execute('INSERT INTO search_fts(rowid,body) VALUES(?,?)', (cursor.lastrowid, row['body']))
-                            db.execute('INSERT OR REPLACE INTO sources VALUES(?,?)', (source, stamp)); changed += 1
-                    for source in known.keys() - found:
-                        db.execute('DELETE FROM search_fts WHERE rowid IN (SELECT rowid FROM entries WHERE source=?)', (source,))
-                        db.execute('DELETE FROM entries WHERE source=?', (source,)); db.execute('DELETE FROM sources WHERE path=?', (source,)); changed += 1
+                                owner=str((entry.get('author') or {}).get('id') or path.relative_to(self.root).parts[0])
+                                identity=hashlib.sha256(json.dumps([owner,kind,row['category'],row['originalId']],ensure_ascii=False).encode()).hexdigest()
+                                latest[identity]=(source,row)
+                        db.execute('DELETE FROM search_fts');db.execute('DELETE FROM entries');db.execute('DELETE FROM sources')
+                        for identity,(source,row) in latest.items():
+                            cursor=db.execute('INSERT INTO entries VALUES(?,?,?,?,?,?,?,?)',
+                                (identity,source,row['date'],row['category'],row['kind'],row['title'],row['body'],row['originalId']))
+                            db.execute('INSERT INTO search_fts(rowid,body) VALUES(?,?)',(cursor.lastrowid,row['body']))
+                        db.executemany('INSERT INTO sources VALUES(?,?)',sources.items())
                     return {'updatedFiles': changed, 'entries': db.execute('SELECT count(*) FROM entries').fetchone()[0]}
             except (OSError, ValueError, TypeError, AttributeError, sqlite3.Error):
                 raise SearchError('无法更新索引，请检查规范化归档文件及目录权限；可修复后重建。') from None
@@ -144,7 +148,7 @@ class SearchIndex:
             try:
                 total = db.execute('SELECT count(*) FROM entries WHERE ' + where, args).fetchone()[0]
                 rows = db.execute('SELECT * FROM entries WHERE ' + where + ' ORDER BY day DESC,id LIMIT 50 OFFSET ?', [*args, offset]).fetchall()
-                return {'total': total, 'nextOffset': offset + len(rows), 'items': [dict(id=row['id'], date=row['day'], diaryType=row['category'], contentType=row['kind'], title=row['title'], source=row['source'], snippet=snippet(row['body'], query)) for row in rows]}
+                return {'total': total, 'nextOffset': offset + len(rows), 'items': [dict(id=row['id'], date=row['day'], diaryType=row['category'], contentType=row['kind'], title=row['title'], snippet=snippet(row['body'], query)) for row in rows]}
             finally: db.close()
 
     def detail(self, identity):
@@ -153,5 +157,5 @@ class SearchIndex:
         try:
             row = db.execute('SELECT * FROM entries WHERE id=?', (identity,)).fetchone()
             if row is None: raise SearchError('本地条目不存在或已更新，请重新搜索。')
-            return dict(id=row['id'], date=row['day'], diaryType=row['category'], contentType=row['kind'], title=row['title'], body=row['body'], source=row['source'])
+            return dict(id=row['id'], date=row['day'], diaryType=row['category'], contentType=row['kind'], title=row['title'], body=row['body'])
         finally: db.close()

@@ -13,12 +13,12 @@ from PIL import Image
 if __package__ in (None, ''):
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from hope_archive.media import media_key
+from hope_archive.image_layout import single_width_percent, LONG_IMAGE_RATIO
 
 PROJECT = Path(__file__).resolve().parents[2]
 EMOTION_LABELS = {'emotion_ha': '哈'}
 WEATHER_LABELS = {'weather_qing': '晴 ☀️'}
 IMAGE_MAX_HEIGHT = 480  # CSS pixels; limits tall screenshots without editing files.
-LONG_IMAGE_RATIO = 2.5  # Provisional height/width threshold, not a semantic classifier.
 
 
 def is_long_image(width, height):
@@ -28,17 +28,7 @@ def is_long_image(width, height):
 
 def single_image_width(size):
     """Percentage cap only. Intrinsic width and max-height still prevent enlargement."""
-    if not size:
-        return 55
-    width, height = size
-    if is_long_image(width, height):
-        return 38  # Preserve the entire long image; never crop or truncate.
-    ratio = width / height
-    if ratio < .85:
-        return 46
-    if ratio > 1.35:
-        return 65
-    return 55
+    return single_width_percent(size)
 
 
 def display_value(value, labels):

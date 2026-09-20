@@ -11,7 +11,6 @@ type Item = {
   contentType: string
   title: string
   snippet: string
-  source: string
 }
 type Results = { items: Item[]; total: number; nextOffset: number }
 type Detail = Omit<Item, "snippet"> & { body: string }
@@ -231,9 +230,7 @@ export function SearchPage({
                 part.match ? <mark key={i}>{part.text}</mark> : part.text
               )}
             </p>
-            <p className="mt-2 text-xs break-all text-muted-foreground">
-              {item.source}
-            </p>
+
           </button>
         ))}
       {results && results.nextOffset < results.total && (
@@ -251,9 +248,7 @@ export function SearchPage({
             本地详情 · {detail.date} · {label(detail)}
           </h2>
           <p className="mt-4 break-words whitespace-pre-wrap">{detail.body}</p>
-          <p className="mt-4 text-xs break-all text-muted-foreground">
-            来源：{detail.source}
-          </p>
+
         </section>
       )}
     </main>

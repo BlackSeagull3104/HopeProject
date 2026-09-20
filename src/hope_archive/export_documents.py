@@ -83,19 +83,29 @@ def write_exclusive(path, data):
 
 def render_tex(items, path):
     parts = [r'\documentclass[UTF8,fontset=fandol]{ctexart}', r'\usepackage[a4paper,margin=25mm]{geometry}',
-             r'\usepackage{graphicx}', r'\setlength{\parindent}{0pt}', r'\begin{document}']
+             r'\usepackage{graphicx}', r'\setlength{\parindent}{0pt}', r'\setlength{\parskip}{9pt}', r'\begin{document}']
+    pending=[]
+    def flush():
+        for row in pdf_image_rows(pending, available_width=453.54):
+            pictures=[]
+            for data,(width,height) in row:
+                name=hashlib.sha256(data).hexdigest()+'.png'
+                write_exclusive(path.parent/'assets'/name,data)
+                pictures.append(r'\includegraphics[width='+f'{width:.3f}pt,height={height:.3f}pt'+r',keepaspectratio]{assets/'+name+'}')
+            parts.append(r'\par\noindent\makebox[\linewidth][c]{'+r'\hspace{12pt}'.join(pictures)+r'}\par\vspace{12pt}')
+        pending.clear()
     for kind, value in items:
+        if kind == 'image':
+            pending.append(value)
+            continue
+        flush()
         if kind == 'page':
             parts.append(r'\newpage')
-        elif kind == 'image':
-            data, _ = value
-            name = hashlib.sha256(data).hexdigest() + '.png'
-            write_exclusive(path.parent / 'assets' / name, data)
-            parts.append(r'\par\begin{center}\includegraphics[width=\linewidth,height=0.78\textheight,keepaspectratio]{assets/' + name + r'}\end{center}\par')
         elif kind in ('heading', 'title', 'subheading'):
-            parts.append(r'\section*{' + tex_escape(value) + '}')
+            parts.append((r'\section*{' if kind=='heading' else r'\subsection*{') + tex_escape(value) + '}')
         else:
             parts.append('\n\n'.join(tex_escape(line) + r'\par' for line in str(value).splitlines()))
+    flush()
     return ('\n\n'.join(parts) + '\n\\end{document}\n').encode('utf-8')
 
 
@@ -106,27 +116,64 @@ def render_docx(items):
     doc = Document()
     section = doc.sections[0]
     section.page_width, section.page_height = Pt(595.28), Pt(841.89)
-    section.top_margin = section.bottom_margin = section.left_margin = section.right_margin = Pt(72)
-    for name in ('Normal', 'Heading 1'):
+    section.top_margin = section.bottom_margin = Pt(54)
+    section.left_margin = section.right_margin = Pt(56)
+    for name in ('Normal', 'Heading 1', 'Heading 2'):
         style = doc.styles[name]
         style.font.name = 'SimSun'
         style.element.get_or_add_rPr().rFonts.set(qn('w:eastAsia'), 'SimSun')
     doc.styles['Normal'].font.size = Pt(11)
+    doc.styles['Normal'].paragraph_format.line_spacing = Pt(17)
     doc.styles['Normal'].paragraph_format.space_after = Pt(8)
     doc.core_properties.author = 'Hope Archive'
     doc.core_properties.last_modified_by = 'Hope Archive'
     doc.core_properties.created = doc.core_properties.modified = datetime(2000, 1, 1)
+    from docx.enum.text import WD_ALIGN_PARAGRAPH
+    from docx.oxml import OxmlElement
+    from docx.shared import RGBColor
+    for name,size in [('Heading 1',17),('Heading 2',13)]:
+        doc.styles[name].font.size=Pt(size)
+        doc.styles[name].font.color.rgb=RGBColor.from_string('222222')
+    pending=[]
+    def add_image(paragraph,data,size):
+        paragraph.alignment=WD_ALIGN_PARAGRAPH.CENTER
+        paragraph.paragraph_format.space_after=Pt(12)
+        paragraph.add_run().add_picture(BytesIO(data),width=Pt(size[0]),height=Pt(size[1]))
+    def flush():
+        for row in pdf_image_rows(pending):
+            if len(row)==1:
+                add_image(doc.add_paragraph(),*row[0])
+            else:
+                table=doc.add_table(rows=1,cols=3)
+                table.autofit=False
+                widths=[(PDF_BODY_WIDTH-12)/2,12,(PDF_BODY_WIDTH-12)/2]
+                for column,width in zip(table.columns,widths): column.width=Pt(width)
+                for cell,width in zip(table.rows[0].cells,widths):
+                    cell.width=Pt(width)
+                    margins=OxmlElement('w:tcMar')
+                    for side in ('top','left','bottom','right'):
+                        edge=OxmlElement('w:'+side);edge.set(qn('w:w'),'0');edge.set(qn('w:type'),'dxa');margins.append(edge)
+                    cell._tc.get_or_add_tcPr().append(margins)
+                props=table.rows[0]._tr.get_or_add_trPr();props.append(OxmlElement('w:cantSplit'))
+                for index,(data,size) in zip((0,2),row): add_image(table.cell(0,index).paragraphs[0],data,size)
+        pending.clear()
     for kind, value in items:
+        if kind=='image':
+            pending.append(value)
+            continue
+        flush()
         if kind == 'page':
             doc.add_page_break()
-        elif kind == 'image':
-            data, size = value
-            width, height = fit_image(*size)
-            doc.add_picture(BytesIO(data), width=Pt(width), height=Pt(height))
         elif kind in ('heading', 'title', 'subheading'):
             doc.add_heading(value, level=1 if kind == 'heading' else 2)
         else:
-            doc.add_paragraph(str(value))
+            paragraph=doc.add_paragraph(str(value))
+            if kind in ('comment','metadata','missing'):
+                if kind=='comment': paragraph.paragraph_format.left_indent=Pt(12)
+                for run in paragraph.runs:
+                    run.font.size=Pt(9.5)
+                    run.font.color.rgb=RGBColor.from_string('555555')
+    flush()
     result = BytesIO()
     doc.save(result)
     # Stable timestamps make repeated identical exports safely skippable.
@@ -139,36 +186,7 @@ def render_docx(items):
     return stable.getvalue()
 
 
-PDF_PAGE = (595.28, 841.89)
-PDF_MARGIN = 56
-PDF_BODY_WIDTH = PDF_PAGE[0] - 2 * PDF_MARGIN - 12  # ReportLab frame padding.
-PDF_IMAGE_GAP = 12
-
-
-def pdf_image_rows(images, available_width=PDF_BODY_WIDTH):
-    """Return ordered rows of (bytes, display size), in points, without cropping."""
-    def compatible(size):
-        w, h = size
-        return .85 <= w / h <= 2.2 and w * .75 >= 144
-    rows, index = [], 0
-    while index < len(images):
-        paired = (index + 1 < len(images) and compatible(images[index][1])
-                  and compatible(images[index + 1][1]) and (available_width - PDF_IMAGE_GAP) / 2 >= 144)
-        batch = images[index:index + (2 if paired else 1)]
-        row = []
-        for data, (w, h) in batch:
-            if paired:
-                width, height = (available_width - PDF_IMAGE_GAP) / 2, 200
-            elif h / w >= 2.5:
-                width, height = available_width * .38, 260
-            elif w / h < .85:
-                width, height = available_width * .46, 300
-            else:
-                width, height = available_width * (.65 if w / h > 1.35 else .55), 260
-            row.append((data, fit_image(w * .75, h * .75, width, height)))
-        rows.append(row)
-        index += len(batch)
-    return rows
+from .image_layout import PDF_PAGE, PDF_MARGIN, PDF_BODY_WIDTH, PDF_IMAGE_GAP, image_rows as pdf_image_rows
 
 
 def render_pdf(items):

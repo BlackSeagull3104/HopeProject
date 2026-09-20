@@ -3,6 +3,18 @@ from .settings import Settings
 from .library import Library
 from .ocr import OCRJobs
 from .export_documents import export_pages
+from .application import ArchiveError
+
+
+def configure_library(service):
+    if service.preferences.read()['exportConfigured']:
+        from .archive_workflow import migrate_legacy
+        backup = service.preferences.backup()
+        migration = migrate_legacy(service.preferences.home, backup)
+        service.migration_warning = '部分旧备份与当前备份存在差异，未覆盖任何文件；原资料仍保留。' if migration['conflicts'] else ''
+        service.library = Library(service.preferences.home, backup)
+        return migration
+    return {'copied':0,'conflicts':0}
 
 
 def run_capsules(service, token, identity, user):
@@ -35,14 +47,21 @@ def dispatch(service, method, path, body, token):
             service.preferences = Settings(getattr(service, 'home', None))
             service.library = Library(service.preferences.home)
             service.ocr_jobs = OCRJobs()
+            configure_library(service)
     if method != 'POST' or not isinstance(body, dict): raise RequestError(400, '请求格式无效。')
     try:
         if path == '/settings/read':
             fields(body, [])
-            return service.preferences.read()
+            return dict(service.preferences.read(),migrationWarning=getattr(service,'migration_warning',''))
         if path == '/settings/save':
             fields(body, ['exportRoot'])
-            return service.preferences.save(body['exportRoot'])
+            with service.lock:
+                if any(j['state']=='running' for j in service.jobs.values()):
+                    raise RequestError(409,'归档进行中，请完成后再更改目录。')
+                result=service.preferences.save(body['exportRoot'])
+                migration=configure_library(service)
+                service.preferences.destination('diaries')
+                return dict(result,migration=migration,migrationWarning=getattr(service,'migration_warning',''))
         if path == '/ocr/start':
             if set(body) != {'images'}: raise ValueError('图片请求格式无效。')
             return service.ocr_jobs.start(body['images'])
@@ -55,8 +74,7 @@ def dispatch(service, method, path, body, token):
         user = service.session(token) if token else None
         user_id = user['userId'] if user else None
         if path == '/library/preview':
-            fields(body, [], ['date', 'diaryType'])
-            return service.library.browse(body, user_id)
+            return service.dispatch('POST','/diaries/preview',body,token)
         if path == '/library/media':
             fields(body, ['key'])
             return service.library.media(body['key'], user_id)
@@ -72,9 +90,25 @@ def dispatch(service, method, path, body, token):
             fields(body, ['query'], ['beginDate','endDate','diaryType','contentType','offset'])
             return index.query(body['query'], body.get('beginDate',''), body.get('endDate',''), body.get('diaryType','all'), body.get('contentType','all'), body.get('offset',0))
         if path == '/library/download':
-            user = service.session(token)
-            fields(body, ['beginDate','endDate'], ['diaryType'])
-            return service.start('archive', dict(body, outputDir=str(service.library.account_root(user['userId']))), token)
+            return dispatch(service,method,'/library/archive',dict(body,formats=['markdown']),token)
+        if path == '/library/archive':
+            from .archive_workflow import run, formats_for
+            from .application import validate_date_range
+            from .diary_types import filter_value
+            import secrets
+            user=service.session(token)
+            fields(body,['beginDate','endDate'],['diaryType','formats'])
+            validate_date_range(body['beginDate'],body['endDate'])
+            filter_value(body.get('diaryType','all'))
+            formats_for(body.get('formats'))
+            with service.lock:
+                output=service.preferences.destination('diaries')
+                if any(j['state']=='running' for j in service.jobs.values()): raise RequestError(409,'已有归档任务正在进行。')
+                if len(service.jobs)>=100: service.jobs.pop(next(iter(service.jobs)))
+                identity=secrets.token_urlsafe(16)
+                service.jobs[identity]={'owner':token,'state':'running','stage':'正在准备归档…','kind':'archive'}
+                service.pool.submit(run,service,identity,dict(body),user['userId'],service.library,output)
+            return {'jobId':identity}
         if path == '/library/export':
             fields(body, ['beginDate','endDate','format'], ['diaryType'])
             return service.library.export(body, service.preferences.destination('diaries'), user_id)
@@ -84,6 +118,7 @@ def dispatch(service, method, path, body, token):
         if path == '/library/capsules/update':
             fields(body, [])
             user = service.session(token)
+            service.preferences.backup()
             import secrets
             with service.lock:
                 if any(j['state']=='running' for j in service.jobs.values()):
@@ -96,7 +131,7 @@ def dispatch(service, method, path, body, token):
         if path == '/library/capsules/export':
             fields(body, ['format'], ['ids'])
             return service.library.export_capsules(body, service.preferences.destination('capsules'), user_id)
-    except (ValueError, OSError, search.SearchError) as exc:
+    except (ValueError, OSError, search.SearchError, ArchiveError) as exc:
         if isinstance(exc, OSError): raise RequestError(400, '无法读写本地文件，请检查文件夹权限。') from None
         raise RequestError(400, str(exc)) from None
     raise RequestError(404, '接口不存在。')
