@@ -13,7 +13,7 @@ from PIL import Image
 if __package__ in (None, ''):
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from hope_archive.media import media_key
-from hope_archive.image_layout import single_width_percent, LONG_IMAGE_RATIO
+from hope_archive.image_layout import single_width_percent, LONG_IMAGE_RATIO, group_sizes, cell_fraction
 
 PROJECT = Path(__file__).resolve().parents[2]
 EMOTION_LABELS = {'emotion_ha': '哈'}
@@ -90,14 +90,14 @@ def image_size(path):
 
 
 def image_group(urls, manifest, archive, markdown_path, asset_root=None):
-    columns = 1 if len(urls) == 1 else 3 if len(urls) == 3 else 2
+    media = [portable_media(url, manifest, archive, markdown_path, asset_root) for url in urls]
+    sizes = [image_size(local[0]) if local else None for local in media]
     rendered = []
-    for start in range(0, len(urls), columns):
+    for start, columns in group_sizes(sizes):
         cells = []
-        for url in urls[start:start + columns]:
-            local = portable_media(url, manifest, archive, markdown_path, asset_root)
-            size = image_size(local[0]) if local else None
-            width_percent = 31 if columns == 3 else 48 if columns == 2 else single_image_width(size)
+        for index in range(start, start + columns):
+            url, local, size = urls[index], media[index], sizes[index]
+            width_percent = round(cell_fraction(columns, size) * 100)
             width_limit = f'max-width:{size[0]}px;' if size else ''
             if local:
                 content = f'<img src="{escape(local[1], quote=True)}" alt="" style="max-width:100%;max-height:{IMAGE_MAX_HEIGHT}px;width:auto;height:auto;">'

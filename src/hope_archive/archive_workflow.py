@@ -84,7 +84,9 @@ def readable(entries, output, formats, begin, end, on_format=None):
             manifest_path = archive / 'media_manifest.json'
             manifest = json.loads(manifest_path.read_text(encoding='utf-8')) if manifest_path.exists() else {}
             if format == ExportFormat.MARKDOWN: markdown.append(render_diary(entry, manifest, archive, path))
-            else: items.extend(blocks(entry, manifest, archive))
+            else:
+                if items: items.append(('separator', ''))
+                items.extend(blocks(entry, manifest, archive))
         data = '\n---\n\n'.join(markdown).encode('utf-8') if format == ExportFormat.MARKDOWN else render_items(items, path, format)
         write_exclusive(path, data)
         result.append(path.name)

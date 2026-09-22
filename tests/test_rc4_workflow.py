@@ -167,11 +167,13 @@ class WorkflowTests(unittest.TestCase):
             buffer=BytesIO();Image.new('RGB',size,'white').save(buffer,format='PNG');images.append((buffer.getvalue(),size))
         items=[('heading','2024-01-01'),('text','中文 English'),*[('image',im) for im in images],('comment','中文留言')]
         document=Document(BytesIO(docs.render_docx(items)))
-        expected=[size for row in image_rows(images) for data,size in row]
+        section = document.sections[0]
+        usable = (section.page_width-section.left_margin-section.right_margin)/12700
+        expected=[size for row in image_rows(images, usable) for data,size in row]
         self.assertEqual(len(document.inline_shapes),len(sizes))
         for shape,(w,h),(ow,oh) in zip(document.inline_shapes,expected,sizes):
             self.assertAlmostEqual(shape.width.pt,w,places=3);self.assertAlmostEqual(shape.height.pt,h,places=3)
-            self.assertAlmostEqual(shape.width/shape.height,ow/oh,places=4);self.assertLessEqual(shape.height.pt,300)
+            self.assertAlmostEqual(shape.width/shape.height,ow/oh,places=4);self.assertLessEqual(shape.height.pt,360)
         tex=docs.render_tex(items,self.root/'tex/export.tex').decode()
         dimensions=[tuple(map(float,pair)) for pair in re.findall(r'width=([\d.]+)pt,height=([\d.]+)pt',tex)]
         tex_expected=[size for row in image_rows(images,453.54) for data,size in row]
@@ -230,7 +232,7 @@ class WorkflowTests(unittest.TestCase):
         self.assertEqual(len(document.tables),1);self.assertEqual(len(document.inline_shapes),2)
         for shape in document.inline_shapes:self.assertAlmostEqual(shape.width/shape.height,800/500,places=4)
         tex=(moved/next(n for n in names if n.endswith('.tex'))).read_text(encoding='utf-8')
-        self.assertIn('fontset=fandol',tex);self.assertIn('keepaspectratio',tex);self.assertIn(r'\hspace{12pt}',tex);self.assertIn(r'100\%',tex)
+        self.assertIn('fontset=fandol',tex);self.assertIn('keepaspectratio',tex);self.assertIn(r'\hspace{.02\linewidth}',tex);self.assertIn(r'100\%',tex)
 
 
 if __name__=='__main__':unittest.main()

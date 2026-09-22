@@ -5,10 +5,12 @@ from html import escape
 from io import BytesIO
 import hashlib
 import os
+import re
 from pathlib import Path
 import zipfile
 
 from PIL import Image, ImageOps
+from .document_style import STYLES, BODY, paragraphs, CommentText, comment_text, LATIN_FONT, CJK_FONT
 from .export_markdown import (diary_path, display_value, EMOTION_LABELS, WEATHER_LABELS,
                               resolve_media, person_name, export_diaries)
 
@@ -53,12 +55,7 @@ def blocks(diary, manifest, archive):
             else:
                 yield 'missing' if not local else 'text', '[本地媒体不可用]' if not local else f'[{media_kind}：{local.name}]'
         elif kind == 'comment':
-            comment, authors = value
-            author = person_name(comment) or '作者未知'
-            reply = ''
-            if comment.get('reply_to_id') is not None:
-                reply = ' 回复 ' + (comment.get('to_name') or authors.get(comment['reply_to_id']) or '未知对象')
-            yield 'comment', f'{author}{reply}：{comment.get("text") or ""}'
+            yield 'comment', comment_text(*value)
         else:
             yield kind, value
 
@@ -92,7 +89,7 @@ def render_tex(items, path):
                 name=hashlib.sha256(data).hexdigest()+'.png'
                 write_exclusive(path.parent/'assets'/name,data)
                 pictures.append(r'\includegraphics[width='+f'{width:.3f}pt,height={height:.3f}pt'+r',keepaspectratio]{assets/'+name+'}')
-            parts.append(r'\par\noindent\makebox[\linewidth][c]{'+r'\hspace{12pt}'.join(pictures)+r'}\par\vspace{12pt}')
+            parts.append(r'\par\noindent\makebox[\linewidth][c]{'+r'\hspace{.02\linewidth}'.join(pictures)+r'}\par\vspace{12pt}')
         pending.clear()
     for kind, value in items:
         if kind == 'image':
@@ -101,6 +98,8 @@ def render_tex(items, path):
         flush()
         if kind == 'page':
             parts.append(r'\newpage')
+        elif kind == 'separator':
+            parts.append(r'\par\bigskip\noindent\rule{\linewidth}{0.4pt}\par\bigskip')
         elif kind in ('heading', 'title', 'subheading'):
             parts.append((r'\section*{' if kind=='heading' else r'\subsection*{') + tex_escape(value) + '}')
         else:
@@ -120,42 +119,65 @@ def render_docx(items):
     section.left_margin = section.right_margin = Pt(56)
     for name in ('Normal', 'Heading 1', 'Heading 2'):
         style = doc.styles[name]
-        style.font.name = 'SimSun'
-        style.element.get_or_add_rPr().rFonts.set(qn('w:eastAsia'), 'SimSun')
-    doc.styles['Normal'].font.size = Pt(11)
-    doc.styles['Normal'].paragraph_format.line_spacing = Pt(17)
-    doc.styles['Normal'].paragraph_format.space_after = Pt(8)
+        style.font.name = LATIN_FONT
+        fonts = style.element.get_or_add_rPr().rFonts
+        fonts.set(qn('w:eastAsia'), CJK_FONT)
+        for key in ('asciiTheme', 'hAnsiTheme', 'eastAsiaTheme', 'cstheme'):
+            fonts.attrib.pop(qn('w:' + key), None)
     doc.core_properties.author = 'Hope Archive'
     doc.core_properties.last_modified_by = 'Hope Archive'
     doc.core_properties.created = doc.core_properties.modified = datetime(2000, 1, 1)
     from docx.enum.text import WD_ALIGN_PARAGRAPH
     from docx.oxml import OxmlElement
     from docx.shared import RGBColor
-    for name,size in [('Heading 1',17),('Heading 2',13)]:
-        doc.styles[name].font.size=Pt(size)
+    for name, semantic in [('Normal','text'),('Heading 1','heading'),('Heading 2','title')]:
+        spec = STYLES[semantic]
+        style = doc.styles[name]
+        style.font.size = Pt(spec.size)
+        style.font.bold = spec.bold
+        fmt = style.paragraph_format
+        fmt.line_spacing = Pt(spec.leading)
+        fmt.space_before, fmt.space_after = Pt(spec.before), Pt(spec.after)
+        fmt.keep_with_next = spec.keep_next
+        fmt.widow_control = True
         doc.styles[name].font.color.rgb=RGBColor.from_string('222222')
+        if spec.rule:
+            border = OxmlElement('w:pBdr'); bottom = OxmlElement('w:bottom')
+            for key, val in [('val','single'),('sz','4'),('color','CCCCCC'),('space','5')]: bottom.set(qn('w:' + key), val)
+            border.append(bottom); style.element.get_or_add_pPr().append(border)
+    usable = (section.page_width - section.left_margin - section.right_margin) / 12700
     pending=[]
     def add_image(paragraph,data,size):
         paragraph.alignment=WD_ALIGN_PARAGRAPH.CENTER
         paragraph.paragraph_format.space_after=Pt(12)
+        paragraph.paragraph_format.line_spacing = 1
         paragraph.add_run().add_picture(BytesIO(data),width=Pt(size[0]),height=Pt(size[1]))
     def flush():
-        for row in pdf_image_rows(pending):
+        for row in pdf_image_rows(pending, available_width=usable):
             if len(row)==1:
                 add_image(doc.add_paragraph(),*row[0])
             else:
-                table=doc.add_table(rows=1,cols=3)
+                from docx.enum.table import WD_TABLE_ALIGNMENT, WD_CELL_VERTICAL_ALIGNMENT
+                from .image_layout import cell_fraction
+                count = len(row)
+                table=doc.add_table(rows=1,cols=count * 2 - 1)
                 table.autofit=False
-                widths=[(PDF_BODY_WIDTH-12)/2,12,(PDF_BODY_WIDTH-12)/2]
+                table.alignment = WD_TABLE_ALIGNMENT.CENTER
+                borders = OxmlElement('w:tblBorders')
+                for edge in ('top','left','bottom','right','insideH','insideV'):
+                    item = OxmlElement('w:' + edge); item.set(qn('w:val'), 'nil'); borders.append(item)
+                table._tbl.tblPr.append(borders)
+                widths=[usable * (cell_fraction(count, None) if i % 2 == 0 else .02) for i in range(count * 2 - 1)]
                 for column,width in zip(table.columns,widths): column.width=Pt(width)
                 for cell,width in zip(table.rows[0].cells,widths):
                     cell.width=Pt(width)
+                    cell.vertical_alignment = WD_CELL_VERTICAL_ALIGNMENT.TOP
                     margins=OxmlElement('w:tcMar')
                     for side in ('top','left','bottom','right'):
                         edge=OxmlElement('w:'+side);edge.set(qn('w:w'),'0');edge.set(qn('w:type'),'dxa');margins.append(edge)
                     cell._tc.get_or_add_tcPr().append(margins)
                 props=table.rows[0]._tr.get_or_add_trPr();props.append(OxmlElement('w:cantSplit'))
-                for index,(data,size) in zip((0,2),row): add_image(table.cell(0,index).paragraphs[0],data,size)
+                for index,(data,size) in enumerate(row): add_image(table.cell(0,index * 2).paragraphs[0],data,size)
         pending.clear()
     for kind, value in items:
         if kind=='image':
@@ -164,15 +186,22 @@ def render_docx(items):
         flush()
         if kind == 'page':
             doc.add_page_break()
+        elif kind == 'separator':
+            paragraph = doc.add_paragraph()
+            border = OxmlElement('w:pBdr')
+            bottom = OxmlElement('w:bottom')
+            for key, val in [('val','single'),('sz','4'),('color','CCCCCC')]: bottom.set(qn('w:' + key), val)
+            border.append(bottom); paragraph._p.get_or_add_pPr().append(border)
         elif kind in ('heading', 'title', 'subheading'):
             doc.add_heading(value, level=1 if kind == 'heading' else 2)
         else:
-            paragraph=doc.add_paragraph(str(value))
-            if kind in ('comment','metadata','missing'):
-                if kind=='comment': paragraph.paragraph_format.left_indent=Pt(12)
-                for run in paragraph.runs:
-                    run.font.size=Pt(9.5)
-                    run.font.color.rgb=RGBColor.from_string('555555')
+            chunks = paragraphs(value.body if isinstance(value, CommentText) else value)
+            if isinstance(value, CommentText) and not chunks: chunks = ['']
+            for index, chunk in enumerate(chunks):
+                paragraph = doc.add_paragraph()
+                if index == 0 and isinstance(value, CommentText):
+                    for label, bold in value.runs: paragraph.add_run(label).bold = bold
+                paragraph.add_run(chunk)
     flush()
     result = BytesIO()
     doc.save(result)
@@ -195,25 +224,63 @@ def render_pdf(items):
     from reportlab.pdfbase.cidfonts import UnicodeCIDFont
     from reportlab.lib.styles import ParagraphStyle
     from reportlab.lib.colors import HexColor
-    from reportlab.platypus import SimpleDocTemplate, Paragraph, Image as PDFImage, Spacer, PageBreak, Table, TableStyle
+    from reportlab.platypus import BaseDocTemplate, Frame, PageTemplate, Paragraph, Image as PDFImage, Spacer, PageBreak, Table, TableStyle, HRFlowable
     font = 'HopeChinese'
+    latin = None
+    font_dir = Path(os.environ.get('WINDIR', 'C:/Windows')) / 'Fonts'
+    symbol = None
+    if (font_dir / 'seguisym.ttf').is_file():
+        symbol = 'HopeSymbols'
+        if symbol not in pdfmetrics.getRegisteredFontNames():
+            pdfmetrics.registerFont(TTFont(symbol, str(font_dir / 'seguisym.ttf')))
+    if (font_dir / 'segoeui.ttf').is_file() and (font_dir / 'segoeuib.ttf').is_file():
+        latin = 'HopeLatin'
+        if latin not in pdfmetrics.getRegisteredFontNames():
+            pdfmetrics.registerFont(TTFont(latin, str(font_dir / 'segoeui.ttf')))
+            pdfmetrics.registerFont(TTFont(latin+'Bold', str(font_dir / 'segoeuib.ttf')))
     if font not in pdfmetrics.getRegisteredFontNames():
-        system_font = Path(os.environ.get('WINDIR', 'C:/Windows')) / 'Fonts/simsun.ttc'
+        font_dir = Path(os.environ.get('WINDIR', 'C:/Windows')) / 'Fonts'
+        system_font = font_dir / 'msyh.ttc'
+        if not system_font.is_file(): system_font = font_dir / 'simsun.ttc'
         if system_font.is_file():
             pdfmetrics.registerFont(TTFont(font, str(system_font), subfontIndex=0))
+            bold_file = font_dir / 'msyhbd.ttc'
+            bold = font + 'Bold'
+            pdfmetrics.registerFont(TTFont(bold, str(bold_file if bold_file.is_file() else system_font), subfontIndex=0))
+            pdfmetrics.registerFontFamily(font, normal=font, bold=bold, italic=font, boldItalic=bold)
         else:
             font = 'STSong-Light'
             if font not in pdfmetrics.getRegisteredFontNames():
                 pdfmetrics.registerFont(UnicodeCIDFont(font))
-    regular = ParagraphStyle('Diary', fontName=font, fontSize=10.5, leading=17, spaceAfter=9, wordWrap='CJK')
-    styles = {
-        'heading': ParagraphStyle('Date', parent=regular, fontSize=17, leading=23, spaceBefore=16, spaceAfter=10, keepWithNext=True),
-        'title': ParagraphStyle('Title', parent=regular, fontSize=13, leading=19, spaceAfter=10, keepWithNext=True),
-        'subheading': ParagraphStyle('Section', parent=regular, fontSize=11.5, leading=18, spaceBefore=10, keepWithNext=True),
-        'metadata': ParagraphStyle('Metadata', parent=regular, fontSize=9, textColor=HexColor('#626262')),
-        'comment': ParagraphStyle('Comment', parent=regular, fontSize=9.5, leading=15, leftIndent=12, textColor=HexColor('#555555')),
-        'missing': ParagraphStyle('Missing', parent=regular, fontSize=9, textColor=HexColor('#666666')),
-    }
+    regular = ParagraphStyle('Diary', fontName=font, fontSize=BODY.size, leading=BODY.leading, spaceAfter=BODY.after, wordWrap='CJK', textColor=HexColor('#222222'))
+    styles = {kind: ParagraphStyle(kind, parent=regular, fontSize=spec.size, leading=spec.leading,
+        spaceBefore=spec.before, spaceAfter=spec.after, keepWithNext=spec.keep_next,
+        fontName=font + 'Bold' if spec.bold and font + 'Bold' in pdfmetrics.getRegisteredFontNames() else font)
+        for kind, spec in STYLES.items()}
+    def literal(text, bold=False):
+        # Font selection is explicit; escape every user character before markup.
+        result = []
+        for run in re.findall(r'[\x20-\x7e]+|[^\x20-\x7e]+', str(text)):
+            escaped = escape(run).replace('\n', '<br/>')
+            if latin and all(ord(c) < 128 for c in run):
+                escaped = '<font name="' + latin + ('Bold' if bold else '') + '">' + escaped + '</font>'
+            elif bold:
+                escaped = '<b>' + escaped + '</b>'
+            if symbol:
+                for glyph in ('↳', '☀'):
+                    escaped = escaped.replace(glyph, '<font name="' + symbol + '">' + glyph + '</font>')
+                escaped = escaped.replace('\ufe0f', '')
+            result.append(escaped)
+        return ''.join(result)
+
+    class HeadingParagraph(Paragraph):
+        def draw(self):
+            super().draw()
+            self.canv.saveState()
+            self.canv.setStrokeColor(HexColor('#CCCCCC'))
+            self.canv.setLineWidth(.5)
+            self.canv.line(0, -5, self.width, -5)
+            self.canv.restoreState()
     story, pending = [], []
     def flush_images():
         for row in pdf_image_rows(pending):
@@ -221,8 +288,12 @@ def render_pdf(items):
             if len(images) == 1:
                 story.append(images[0])
             else:
-                cell = (PDF_BODY_WIDTH - PDF_IMAGE_GAP) / 2
-                table = Table([[images[0], '', images[1]]], colWidths=[cell, PDF_IMAGE_GAP, cell], hAlign='CENTER')
+                from .image_layout import cell_fraction
+                cells, widths = [], []
+                for index, item in enumerate(images):
+                    if index: cells.append(''); widths.append(PDF_IMAGE_GAP)
+                    cells.append(item); widths.append(PDF_BODY_WIDTH * cell_fraction(len(images), None))
+                table = Table([cells], colWidths=widths, hAlign='CENTER')
                 table.setStyle(TableStyle([('VALIGN',(0,0),(-1,-1),'TOP'), ('ALIGN',(0,0),(-1,-1),'CENTER'),
                     ('LEFTPADDING',(0,0),(-1,-1),0), ('RIGHTPADDING',(0,0),(-1,-1),0),
                     ('TOPPADDING',(0,0),(-1,-1),0), ('BOTTOMPADDING',(0,0),(-1,-1),0)]))
@@ -236,17 +307,27 @@ def render_pdf(items):
         flush_images()
         if kind == 'page':
             story.append(PageBreak())
+        elif kind == 'separator':
+            story.append(HRFlowable(width='100%', thickness=.5, color=HexColor('#CCCCCC'), spaceBefore=12, spaceAfter=12))
         else:
             # Paragraphs remain literal diary text; never interpret user HTML.
-            text = str(value).replace(' ☀️', '') if kind == 'metadata' else str(value)
-            paragraphs = text.split('\n\n') if kind in ('text', 'comment') else [text]
-            for paragraph in paragraphs:
-                if paragraph:
-                    story.append(Paragraph(escape(paragraph).replace('\n', '<br/>'), styles.get(kind, regular)))
+            text = str(value)
+            chunks = paragraphs(value.body if isinstance(value, CommentText) else text)
+            if isinstance(value, CommentText) and not chunks: chunks = ['']
+            for index, chunk in enumerate(chunks):
+                spec = STYLES.get(kind, BODY)
+                markup = literal(chunk, spec.bold)
+                if index == 0 and isinstance(value, CommentText):
+                    markup = ''.join(literal(label, bold) for label, bold in value.runs) + markup
+                paragraph_class = HeadingParagraph if spec.rule else Paragraph
+                story.append(paragraph_class(markup, styles.get(kind, regular)))
     flush_images()
     target = BytesIO()
-    SimpleDocTemplate(target, pagesize=PDF_PAGE, rightMargin=PDF_MARGIN, leftMargin=PDF_MARGIN,
-                      topMargin=54, bottomMargin=54, invariant=1, title='Hope Archive', author='Hope Archive').build(story)
+    document = BaseDocTemplate(target, pagesize=PDF_PAGE, rightMargin=PDF_MARGIN, leftMargin=PDF_MARGIN,
+                      topMargin=54, bottomMargin=54, invariant=1, title='Hope Archive', author='Hope Archive')
+    document.addPageTemplates(PageTemplate(id='diary', frames=[Frame(PDF_MARGIN,54,PDF_BODY_WIDTH,PDF_PAGE[1]-108,
+        leftPadding=0,rightPadding=0,topPadding=0,bottomPadding=0)]))
+    document.build(story)
     return target.getvalue()
 
 
@@ -328,7 +409,10 @@ def export_range(document, manifest, archive, output_dir, format, nickname, begi
         if format == ExportFormat.MARKDOWN:
             data = '\n---\n\n'.join(render_diary(d, manifest, archive, path) for d in document['diaries']).encode('utf-8')
         else:
-            items = [block for d in document['diaries'] for block in blocks(d, manifest, archive)]
+            items = []
+            for diary in document['diaries']:
+                if items: items.append(('separator', ''))
+                items.extend(blocks(diary, manifest, archive))
             data = render_items(items, path, format)
         stats['generated' if write_exclusive(path, data) else 'skipped'] = 1
     except (OSError, ValueError, TypeError):

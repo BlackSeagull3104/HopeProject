@@ -91,7 +91,8 @@ class MarkdownTests(unittest.TestCase):
             html=image_group(urls[:count],self.manifest,self.root,self.root/'x.md')
             self.assertEqual(html.count('class="image-row"'),rows)
             self.assertEqual(html.count('<img '),count)
-            self.assertEqual(html.count('width:31%' if count == 3 else 'width:48%'), count)
+            self.assertEqual(html.count('width:31%' if count == 3 else 'width:48%'), count if count != 5 else 4)
+            if count == 5: self.assertIn('width:46%', html)  # trailing single has single-image semantics
             if count == 4:
                 rows = html.split('class="image-row"')[1:]
                 self.assertEqual([row.count('<img ') for row in rows], [2, 2])

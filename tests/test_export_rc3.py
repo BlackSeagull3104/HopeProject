@@ -114,13 +114,13 @@ class PortableExportTests(unittest.TestCase):
     def test_pdf_layout_rules_preserve_ratio_order_and_bounds(self):
         sizes=[(800,450),(600,600),(400,800),(200,1800),(40,20),(800,450),(800,450),(800,450)]
         rows=doc.pdf_image_rows([(str(i).encode(),s) for i,s in enumerate(sizes)])
-        self.assertEqual([len(r) for r in rows],[2,1,1,1,2,1])
+        self.assertEqual([len(r) for r in rows],[1,1,1,1,1,2,1])
         flattened=[x for r in rows for x in r]
         self.assertEqual([x[0] for x in flattened],[str(i).encode() for i in range(len(sizes))])
         for (_, (w,h)),(ow,oh) in zip(flattened,sizes):
             self.assertAlmostEqual(w/h,ow/oh);self.assertLessEqual(w,doc.PDF_BODY_WIDTH)
-            self.assertLessEqual(h,300);self.assertLessEqual(w,ow*.75)
-        self.assertLessEqual(flattened[3][1][1],260)
+            self.assertLessEqual(h,360);self.assertLessEqual(w,ow*.75)
+        self.assertLessEqual(flattened[3][1][1],360)
         for row in rows:self.assertLessEqual(sum(s[0] for _,s in row)+doc.PDF_IMAGE_GAP*(len(row)-1),doc.PDF_BODY_WIDTH)
 
     def test_ten_pdf_visual_fixtures(self):
@@ -139,6 +139,6 @@ class PortableExportTests(unittest.TestCase):
                     data=doc.render_pdf(items)
                     for call in image.call_args_list:
                         self.assertLessEqual(call.kwargs['width'],doc.PDF_BODY_WIDTH)
-                        self.assertLessEqual(call.kwargs['height'],300)
+                        self.assertLessEqual(call.kwargs['height'],360)
                 self.assertTrue(data.startswith(b'%PDF-'));self.assertIn(b'/FontFile2',data)
                 (output/(name+'.pdf')).write_bytes(data)
