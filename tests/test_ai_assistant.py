@@ -43,6 +43,7 @@ class DiaryAssistantTests(unittest.TestCase):
             diary('d6', '2026-03-11', '第二次 NLP 课', '复习 NLP 和 HMM，然后去打乒乓球。'),
             diary('d7', '2026-03-12', '晚餐', '晚饭吃了贵州酸汤鱼，但没有旅行。'),
             diary('d8', '2026-03-13', '重复摘录', '阅读 nanoGPT 源码并训练了一个小模型。'),
+            diary('d9', '2026-01-03', '午餐', '中午吃了面条。'),
         ]
         document = {'schema_version': 1, 'source': 'synthetic', 'diaries': entries}
         (self.root / 'diaries.normalized.json').write_text(
@@ -130,6 +131,27 @@ class DiaryAssistantTests(unittest.TestCase):
     def test_query_expansion_is_deterministic(self):
         self.assertEqual(query_terms('自然语言处理 NLP'), query_terms('自然语言处理 NLP'))
         self.assertIn('NLP', query_terms('自然语言处理 NLP'))
+
+    def test_follow_up_uses_cited_source_then_same_day_then_broadens(self):
+        first = self.ask('NLP')
+        cited = next(s['id'] for s in first['sources'] if s['date'] == '2026-01-03')
+        locked = self.ask('那一天我还写了什么？', sourceIds=[cited])
+        self.assertEqual([s['title'] for s in locked['sources']], ['自然语言处理'])
+        same_day = self.ask('那天吃了什么？', sourceIds=[cited])
+        self.assertEqual([s['title'] for s in same_day['sources']], ['午餐'])
+        broader = self.ask('那天贵州', sourceIds=[cited])
+        self.assertIn('贵州旅行', [s['title'] for s in broader['sources']])
+
+    def test_development_diagnostics_are_off_by_default(self):
+        from hope_archive.ai_assistant import development_diagnostics
+        from unittest.mock import patch
+        with patch.dict('os.environ', {'HOPE_AI_DEBUG': ''}):
+            with self.assertRaisesRegex(Exception, '诊断'):
+                development_diagnostics(self.index, 'NLP')
+        with patch.dict('os.environ', {'HOPE_AI_DEBUG': '1'}):
+            result = development_diagnostics(self.index, 'NLP')
+            self.assertGreater(result['candidateCount'], 0)
+            self.assertNotIn(str(self.root), json.dumps(result))
 
     def test_empty_archive_is_clear_and_skips_provider(self):
         with TemporaryDirectory() as root, TemporaryDirectory() as cache:

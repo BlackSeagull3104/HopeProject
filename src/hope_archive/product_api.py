@@ -41,7 +41,7 @@ def run_capsules(service, token, identity, user):
 
 def dispatch(service, method, path, body, token):
     from .local_api import RequestError, fields
-    from . import search, ai, ai_assistant
+    from . import search, ai, ai_assistant, ai_workflows
     with service.lock:
         if not hasattr(service, 'preferences'):
             service.preferences = Settings(getattr(service, 'home', None))
@@ -81,13 +81,27 @@ def dispatch(service, method, path, body, token):
         if path.startswith('/library/ai/'):
             with service.lock:
                 if service.ai_settings is None: service.ai_settings = ai.AISettings()
+                if not hasattr(service, 'ai_workflows'):
+                    service.ai_workflows = ai_workflows.WorkflowManager(service.pool)
             root = service.library.account_root(user_id) if user_id else service.library.root
-            assistant = ai_assistant.DiaryAssistant(search.SearchIndex(root, service.search_cache), service.ai_settings)
-            if path.endswith('/status'):
+            index = search.SearchIndex(root, service.search_cache)
+            assistant = ai_assistant.DiaryAssistant(index, service.ai_settings)
+            manager = service.ai_workflows
+            owner = token or 'offline'
+            if path == '/library/ai/status':
                 fields(body, [])
                 return assistant.status()
-            if path.endswith('/ask'):
+            if path == '/library/ai/ask':
                 return assistant.ask(body)
+            if path == '/library/ai/prepare':
+                return manager.prepare(owner, index, service.ai_settings, body)
+            if path in ('/library/ai/start', '/library/ai/progress', '/library/ai/cancel', '/library/ai/export'):
+                fields(body, ['id'], ['confirmLarge'] if path.endswith('/start') else [])
+                if path.endswith('/start'):
+                    return manager.start(owner, body['id'], service.ai_settings, body.get('confirmLarge', False))
+                if path.endswith('/cancel'): return manager.cancel(owner, body['id'])
+                if path.endswith('/progress'): return manager.public(manager.get(owner, body['id']))
+                return manager.export(owner, body['id'], service.preferences.destination('diaries'))
             raise RequestError(404, '接口不存在。')
         if path.startswith('/library/search/'):
             root = service.library.account_root(user_id) if user_id else service.library.root

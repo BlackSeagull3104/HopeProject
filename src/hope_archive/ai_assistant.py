@@ -1,7 +1,8 @@
 """Local-first, retrieval-grounded diary question answering."""
-from dataclasses import dataclass
 from datetime import date
+import os
 import re
+import sys
 
 from . import ai
 from .diary_types import LABELS
@@ -23,12 +24,13 @@ ALIASES = {
     'nlp': ('NLP', '自然语言处理'),
     'nanogpt': ('nanoGPT',),
     '梵净山': ('梵净山', '贵州'),
+    '贵州': ('贵州', '梵净山'),
     '学了': ('学习', '学会', '课程', '阅读'),
     '学习': ('学习', '学会', '课程', '阅读'),
 }
 STOP = ('我最近', '我什么时候', '什么时候', '提到过', '写过', '找出', '关于', '根据',
         '我的日记', '日记里', '哪几篇', '哪几天', '有没有', '总结', '这段时间', '发生过',
-        '都在', '什么', '那一天', '还写了', '请问', '最近')
+        '都在', '什么', '那一天', '那天', '还写了', '请问', '最近')
 
 
 class AssistantError(Exception):
@@ -67,6 +69,18 @@ def query_terms(question):
         if normalized and normalized.casefold() not in {item.casefold() for item in result}:
             result.append(normalized)
     return result[:12]
+
+
+def development_diagnostics(index, question, begin='', end='', category='all'):
+    """Opt-in local diagnostic for synthetic development archives; never an API route."""
+    if getattr(sys, 'frozen', False) or os.environ.get('HOPE_AI_DEBUG') != '1':
+        raise AssistantError('诊断仅在显式启用的开发环境可用。')
+    terms = query_terms(question)
+    entries = index.retrieve(question, terms, begin, end, category, 50)
+    selected = select_chunks(entries)
+    return {'terms': terms, 'candidateCount': len(entries), 'selectedChunks': len(selected),
+            'truncated': len(entries) > TOP_K or sum(len(e['body']) for e in entries) > MAX_CONTEXT_CHARS,
+            'scores': [sum(e['body'].casefold().count(t.casefold()) for t in terms) for e in entries[:TOP_K]]}
 
 
 def chunk_entry(entry):
@@ -138,7 +152,8 @@ class DiaryAssistant:
         return {'providers': self.settings.configured(), 'limits': {'topK': TOP_K, 'contextChars': MAX_CONTEXT_CHARS}}
 
     def ask(self, body):
-        allowed = {'question', 'beginDate', 'endDate', 'diaryType', 'provider', 'history', 'disclosureAccepted'}
+        allowed = {'question', 'beginDate', 'endDate', 'diaryType', 'provider', 'history',
+                   'sourceIds', 'disclosureAccepted'}
         if not isinstance(body, dict) or set(body) - allowed:
             raise AssistantError('请求包含不支持的字段。')
         if body.get('disclosureAccepted') is not True:
@@ -161,7 +176,22 @@ class DiaryAssistant:
         validate_date_range(begin, end)
         category = body.get('diaryType', 'all')
         if category not in (*LABELS, 'all'): raise AssistantError('日记类型无效。')
-        entries = self.index.retrieve(question, terms, begin, end, category, TOP_K * 2)
+        previous_ids = body.get('sourceIds', [])
+        if not isinstance(previous_ids, list): raise AssistantError('来源状态无效。')
+        referential = bool(re.search(r'那天|那一天|当天|那篇|这篇|刚才|前面', question))
+        locked = self.index.selected_entries(previous_ids[:8]) if referential and previous_ids else []
+        # Resolve cited entries first. If the new question has no lexical overlap,
+        # broaden locally within the cited dates before searching the wider range.
+        if locked and (not terms or any(t.casefold() in e['body'].casefold() for t in terms for e in locked)):
+            entries = locked
+        elif locked:
+            dates = sorted({e['date'] for e in locked if e['date']})
+            same_day = [e for e in self.index.range_entries(dates[0], dates[-1], category, 121)
+                        if e['date'] in dates] if dates else []
+            entries = [e for e in same_day if any(t.casefold() in e['body'].casefold() for t in terms)]
+            if not entries: entries = self.index.retrieve(question, terms, begin, end, category, TOP_K * 2)
+        else:
+            entries = self.index.retrieve(question, terms, begin, end, category, TOP_K * 2)
         chunks = select_chunks(entries)
         sources = citations(chunks)
         if not chunks:

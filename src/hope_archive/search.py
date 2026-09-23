@@ -167,12 +167,45 @@ class SearchIndex:
             return db.execute("SELECT count(*) FROM entries WHERE kind='diary'").fetchone()[0]
         finally: db.close()
 
+    def range_entries(self, begin, end, category='all', limit=121):
+        """Chronological diary evidence for reviews, bounded before any model call."""
+        if category not in (*LABELS, 'all') or not isinstance(begin, str) or not isinstance(end, str):
+            raise SearchError('检索筛选无效。')
+        try:
+            if not begin or not end or date.fromisoformat(begin) > date.fromisoformat(end): raise ValueError()
+        except ValueError: raise SearchError('日期范围无效。') from None
+        self.sync()
+        db = self.connect()
+        try:
+            sql = "SELECT id,day,category,title,body FROM entries WHERE kind='diary' AND day>=? AND day<=?"
+            args = [begin, end]
+            if category != 'all': sql += ' AND category=?'; args.append(category)
+            rows = db.execute(sql + ' ORDER BY day,id LIMIT ?', [*args, limit]).fetchall()
+            return [dict(id=r['id'], date=r['day'], diaryType=r['category'], title=r['title'], body=r['body']) for r in rows]
+        finally: db.close()
+
+    def selected_entries(self, identities):
+        """Resolve only stable diary IDs in this account's index."""
+        if (not isinstance(identities, list) or not 1 <= len(identities) <= 50 or
+                any(not isinstance(i, str) or not re.fullmatch(r'[0-9a-f]{64}', i) for i in identities) or
+                len(set(identities)) != len(identities)):
+            raise SearchError('所选日记无效，请重新选择。')
+        self.sync()
+        db = self.connect()
+        try:
+            placeholders = ','.join('?' for _ in identities)
+            rows = db.execute(f"SELECT id,day,category,title,body FROM entries WHERE kind='diary' AND id IN ({placeholders})", identities).fetchall()
+            if len(rows) != len(identities): raise SearchError('所选日记不存在或已更新，请重新选择。')
+            by_id = {r['id']: dict(id=r['id'], date=r['day'], diaryType=r['category'], title=r['title'], body=r['body']) for r in rows}
+            return [by_id[i] for i in identities]
+        finally: db.close()
+
     def retrieve(self, question, terms, begin='', end='', category='all', limit=16):
         """Rank diary entries locally for grounded QA; never returns source paths."""
         if (not isinstance(question, str) or not isinstance(terms, list) or
                 any(not isinstance(term, str) or not term for term in terms)):
             raise SearchError('检索问题无效。')
-        if category not in (*LABELS, 'all') or type(limit) is not int or not 1 <= limit <= 50:
+        if category not in (*LABELS, 'all') or type(limit) is not int or not 1 <= limit <= 200:
             raise SearchError('检索筛选无效。')
         try:
             if begin: date.fromisoformat(begin)
