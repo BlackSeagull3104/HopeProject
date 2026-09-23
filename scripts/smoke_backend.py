@@ -51,6 +51,17 @@ def main():
                 assert json.load(response)['total'] == 1
             with urlopen(Request(base + '/ai/presets', data=b'{}', headers=headers), timeout=5) as response:
                 assert len(json.load(response)['presets']) == 11
+            # Exercise the packaged v2 route without reading credentials or calling a provider.
+            try:
+                urlopen(Request(base + '/library/ai/prepare',
+                    data=json.dumps({'mode': 'review', 'provider': 'none',
+                        'beginDate': '2026-01-01', 'endDate': '2026-01-02'}).encode(),
+                    headers=headers), timeout=5)
+                raise AssertionError('AI privacy disclosure was bypassed')
+            except HTTPError as exc:
+                assert exc.code == 400
+                assert '隐私说明' in json.load(exc)['error']
+                exc.close()
             # Presets do not read OS credentials or contact any AI provider.
             # Readiness includes validation of both bundled protocol constants.
             # Do not trigger a real SMS or login request during packaging.

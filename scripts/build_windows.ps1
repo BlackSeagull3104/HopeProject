@@ -42,7 +42,7 @@ try {
     $installer = "frontend/vite-app/src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/Hope Archive_${version}_x64-setup.exe"
     if (-not (Test-Path -LiteralPath $installer)) { throw 'Installer missing' }
     New-Item -ItemType Directory -Force dist/releases | Out-Null
-    $release = "dist/releases/HopeArchive-${version}-ai-v1-dev-Setup.exe"
+    $release = "dist/releases/HopeArchive-${version}-ai-v2-dev-Setup.exe"
     Copy-Item -LiteralPath $installer -Destination $release
     Write-Output "Installer: $release"
     Write-Output "Portable application: $portable"
