@@ -1,0 +1,14 @@
+{
+  "platform": "Windows-11-10.0.26200-SP0",
+  "processor": "Intel64 Family 6 Model 183 Stepping 1, GenuineIntel",
+  "python": "3.12.10",
+  "diaries": 6000,
+  "buildMs": 101.62559989839792,
+  "unchangedMs": 2.347799949347973,
+  "oneChangedFileMs": 119.89269964396954,
+  "updatePolicy": "existing full FTS rebuild when normalized file stamp changes",
+  "meanQueryMs": 8.354479959234595,
+  "p95QueryMs": 14.324499759823084,
+  "indexBytes": 4231168,
+  "peakWorkingSetBytes": 46669824
+}

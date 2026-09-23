@@ -12,7 +12,7 @@ type Item = {
   title: string
   snippet: string
 }
-type Results = { items: Item[]; total: number; nextOffset: number }
+type Results = { items: Item[]; total: number; nextOffset: number; limited?: boolean }
 type Detail = Omit<Item, "snippet"> & { body: string }
 const input = "h-10 rounded-lg border bg-background px-3 text-sm min-w-0"
 function label(item: Item | Detail) {
@@ -35,6 +35,7 @@ export function SearchPage({
   const [endDate, setEnd] = useState("")
   const [diaryType, setDiaryType] = useState("all")
   const [contentType, setContentType] = useState("all")
+  const [related, setRelated] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState("")
   const [message, setMessage] = useState("")
@@ -45,6 +46,7 @@ export function SearchPage({
     endDate: "",
     diaryType: "all",
     contentType: "all",
+    related: false,
   })
   const [detail, setDetail] = useState<Detail | null>(null)
   const [selected, setSelected] = useState<string[]>([])
@@ -55,7 +57,7 @@ export function SearchPage({
     setDetail(null)
     const filters = more
       ? applied
-      : { query, beginDate, endDate, diaryType, contentType }
+      : { query, beginDate, endDate, diaryType, contentType, related }
     if (!more) setResults(null)
     if (!more) setSelected([])
     try {
@@ -146,6 +148,7 @@ export function SearchPage({
             <select
               className={input}
               value={contentType}
+              disabled={related}
               onChange={(e) => setContentType(e.target.value)}
             >
               <option value="all">全部内容</option>
@@ -154,6 +157,14 @@ export function SearchPage({
             </select>
           </label>
         </div>
+        <label className="flex items-center gap-2 text-sm">
+          <input type="checkbox" checked={related} onChange={(e) => {
+            setRelated(e.target.checked)
+            if (e.target.checked) setContentType("diary")
+          }} />
+          本地相关词检索（仅日记，不联网）
+        </label>
+        {related && <p className="text-sm text-muted-foreground">使用有限的本地别名和概念词，按相关度显示最多 200 条候选；匹配不代表事件确实发生。</p>}
         <Button
           variant="outline"
           onClick={async () => {
@@ -190,7 +201,7 @@ export function SearchPage({
         ) : results ? (
           <p>
             {results.total
-              ? `找到 ${results.total} 条结果 · ${applied.query}`
+              ? `找到 ${results.total} 条结果${results.limited ? "（已达上限，请缩小日期范围）" : ""} · ${applied.query}`
               : "没有找到匹配的内容，换个关键词试试吧。"}
           </p>
         ) : (

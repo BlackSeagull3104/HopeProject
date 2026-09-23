@@ -112,7 +112,12 @@ def dispatch(service, method, path, body, token):
             if path.endswith('/detail'):
                 fields(body, ['id'])
                 return index.detail(body['id'])
-            fields(body, ['query'], ['beginDate','endDate','diaryType','contentType','offset'])
+            fields(body, ['query'], ['beginDate','endDate','diaryType','contentType','offset','related'])
+            if type(body.get('related', False)) is not bool: raise ValueError('检索选项无效。')
+            if body.get('related'):
+                if body.get('contentType') != 'diary': raise ValueError('相关词检索仅支持日记。')
+                return index.related_query(body['query'], ai_assistant.query_terms(body['query']),
+                    body.get('beginDate',''), body.get('endDate',''), body.get('diaryType','all'), body.get('offset',0))
             return index.query(body['query'], body.get('beginDate',''), body.get('endDate',''), body.get('diaryType','all'), body.get('contentType','all'), body.get('offset',0))
         if path == '/library/download':
             return dispatch(service,method,'/library/archive',dict(body,formats=['markdown']),token)

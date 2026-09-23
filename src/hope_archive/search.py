@@ -151,6 +151,18 @@ class SearchIndex:
                 return {'total': total, 'nextOffset': offset + len(rows), 'items': [dict(id=row['id'], date=row['day'], diaryType=row['category'], contentType=row['kind'], title=row['title'], snippet=snippet(row['body'], query)) for row in rows]}
             finally: db.close()
 
+    def related_query(self, query, terms, begin='', end='', category='all', offset=0):
+        """Opt-in diary concept search; same candidates/ranking as Ask and Timeline."""
+        if type(offset) is not int or not 0 <= offset <= 200:
+            raise SearchError('分页位置无效。')
+        if not isinstance(query, str) or not 1 <= len(query.strip()) <= 200:
+            raise SearchError('请输入 1–200 字符的关键词。')
+        entries = self.retrieve(query, terms, begin, end, category, 200)
+        page = entries[offset:offset + 50]
+        return {'total':len(entries), 'nextOffset':offset + len(page), 'limited':len(entries)==200,
+                'items':[dict(id=e['id'],date=e['date'],diaryType=e['diaryType'],
+                              contentType='diary',title=e['title'],snippet=snippet(e['body'],query)) for e in page]}
+
     def detail(self, identity):
         self.sync()
         db = self.connect()

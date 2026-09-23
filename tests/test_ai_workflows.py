@@ -8,7 +8,7 @@ import unittest
 from hope_archive.ai import AIError
 from hope_archive.ai_workflows import WorkflowManager, valid_citations, dated_citations
 from hope_archive.search import SearchIndex
-from hope_archive.ai_assistant import query_terms
+from hope_archive.ai_assistant import query_terms, lexical_terms
 
 
 class MockSettings:
@@ -212,7 +212,9 @@ class SemanticBenchmarkTests(unittest.TestCase):
             ]
             for question, expected in cases:
                 with self.subTest(question=question):
-                    self.assertEqual(bool(index.retrieve(question, query_terms(question))), expected)
+                    # Preserve the original v2 failure measurement, then require v3 recall.
+                    self.assertEqual(bool(index.retrieve(question, lexical_terms(question))), expected)
+                    self.assertTrue(index.retrieve(question, query_terms(question)))
 
 
 class WorkflowApiTests(unittest.TestCase):

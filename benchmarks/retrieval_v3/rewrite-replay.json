@@ -1,0 +1,1396 @@
+{
+  "kind": "HANDWRITTEN REPLAY: not measured LLM quality",
+  "providerCalls": 0,
+  "simulatedCalls": 54,
+  "nonemptyReplays": 12,
+  "metrics": {
+    "all": {
+      "queries": 80,
+      "recall@1": 0.3237,
+      "precision@1": 0.4875,
+      "recall@3": 0.4706,
+      "precision@3": 0.3125,
+      "recall@5": 0.5221,
+      "precision@5": 0.2275,
+      "mrr": 0.5271
+    },
+    "alias": {
+      "queries": 8,
+      "recall@1": 0.2083,
+      "precision@1": 0.375,
+      "recall@3": 0.2917,
+      "precision@3": 0.2083,
+      "recall@5": 0.2917,
+      "precision@5": 0.125,
+      "mrr": 0.375
+    },
+    "exact": {
+      "queries": 26,
+      "recall@1": 0.7628,
+      "precision@1": 0.9231,
+      "recall@3": 0.9231,
+      "precision@3": 0.4487,
+      "recall@5": 0.9231,
+      "precision@5": 0.2692,
+      "mrr": 0.9231
+    },
+    "paraphrase": {
+      "queries": 13,
+      "recall@1": 0.1026,
+      "precision@1": 0.1538,
+      "recall@3": 0.2436,
+      "precision@3": 0.1795,
+      "recall@5": 0.2949,
+      "precision@5": 0.1385,
+      "mrr": 0.2436
+    },
+    "semantic": {
+      "queries": 33,
+      "recall@1": 0.0929,
+      "precision@1": 0.303,
+      "recall@3": 0.2468,
+      "precision@3": 0.2828,
+      "recall@5": 0.3515,
+      "precision@5": 0.2545,
+      "mrr": 0.3636
+    },
+    "Chinese": {
+      "queries": 55,
+      "recall@1": 0.2748,
+      "precision@1": 0.4,
+      "recall@3": 0.3887,
+      "precision@3": 0.2485,
+      "recall@5": 0.4327,
+      "precision@5": 0.1855,
+      "mrr": 0.4333
+    },
+    "English": {
+      "queries": 18,
+      "recall@1": 0.3954,
+      "precision@1": 0.6667,
+      "recall@3": 0.6074,
+      "precision@3": 0.4444,
+      "recall@5": 0.6648,
+      "precision@5": 0.3111,
+      "mrr": 0.6944
+    },
+    "mixed": {
+      "queries": 7,
+      "recall@1": 0.5238,
+      "precision@1": 0.7143,
+      "recall@3": 0.7619,
+      "precision@3": 0.4762,
+      "recall@5": 0.8571,
+      "precision@5": 0.3429,
+      "mrr": 0.8333
+    },
+    "date-filtered": {
+      "queries": 6,
+      "recall@1": 0.5,
+      "precision@1": 0.6667,
+      "recall@3": 0.5833,
+      "precision@3": 0.2778,
+      "recall@5": 0.5833,
+      "precision@5": 0.1667,
+      "mrr": 0.6667
+    }
+  },
+  "results": [
+    {
+      "id": "q1",
+      "question": "nanoGPT",
+      "relevant": [
+        "d1",
+        "d37",
+        "d43"
+      ],
+      "category": "exact",
+      "language": "English",
+      "begin": "",
+      "end": "",
+      "ranked": [
+        "d43",
+        "d37",
+        "d1"
+      ],
+      "rewriteCalled": false
+    },
+    {
+      "id": "q2",
+      "question": "tokenizer",
+      "relevant": [
+        "d2",
+        "d38",
+        "d44"
+      ],
+      "category": "exact",
+      "language": "English",
+      "begin": "",
+      "end": "",
+      "ranked": [
+        "d44",
+        "d38",
+        "d2"
+      ],
+      "rewriteCalled": false
+    },
+    {
+      "id": "q3",
+      "question": "梵净山",
+      "relevant": [
+        "d3",
+        "d42"
+      ],
+      "category": "exact",
+      "language": "Chinese",
+      "begin": "",
+      "end": "",
+      "ranked": [
+        "d42",
+        "d3",
+        "d9"
+      ],
+      "rewriteCalled": false
+    },
+    {
+      "id": "q4",
+      "question": "乒乓球",
+      "relevant": [
+        "d4",
+        "d40",
+        "d41"
+      ],
+      "category": "exact",
+      "language": "Chinese",
+      "begin": "",
+      "end": "",
+      "ranked": [
+        "d41",
+        "d40",
+        "d4"
+      ],
+      "rewriteCalled": false
+    },
+    {
+      "id": "q5",
+      "question": "FTS5",
+      "relevant": [
+        "d8"
+      ],
+      "category": "exact",
+      "language": "English",
+      "begin": "",
+      "end": "",
+      "ranked": [
+        "d8"
+      ],
+      "rewriteCalled": false
+    },
+    {
+      "id": "q6",
+      "question": "useEffect",
+      "relevant": [
+        "d7"
+      ],
+      "category": "exact",
+      "language": "English",
+      "begin": "",
+      "end": "",
+      "ranked": [
+        "d7"
+      ],
+      "rewriteCalled": false
+    },
+    {
+      "id": "q7",
+      "question": "酸汤鱼",
+      "relevant": [
+        "d9",
+        "d49"
+      ],
+      "category": "exact",
+      "language": "Chinese",
+      "begin": "",
+      "end": "",
+      "ranked": [
+        "d49",
+        "d9"
+      ],
+      "rewriteCalled": false
+    },
+    {
+      "id": "q8",
+      "question": "绿萝",
+      "relevant": [
+        "d18"
+      ],
+      "category": "exact",
+      "language": "Chinese",
+      "begin": "",
+      "end": "",
+      "ranked": [
+        "d18"
+      ],
+      "rewriteCalled": false
+    },
+    {
+      "id": "q9",
+      "question": "贝叶斯",
+      "relevant": [
+        "d33"
+      ],
+      "category": "exact",
+      "language": "Chinese",
+      "begin": "",
+      "end": "",
+      "ranked": [
+        "d33"
+      ],
+      "rewriteCalled": false
+    },
+    {
+      "id": "q10",
+      "question": "Rust 文件校验和",
+      "relevant": [
+        "d52"
+      ],
+      "category": "exact",
+      "language": "mixed",
+      "begin": "",
+      "end": "",
+      "ranked": [
+        "d52"
+      ],
+      "rewriteCalled": true
+    },
+    {
+      "id": "q11",
+      "question": "HTTP client",
+      "relevant": [
+        "d25"
+      ],
+      "category": "exact",
+      "language": "English",
+      "begin": "",
+      "end": "",
+      "ranked": [
+        "d25"
+      ],
+      "rewriteCalled": false
+    },
+    {
+      "id": "q12",
+      "question": "CSS grid 布局",
+      "relevant": [
+        "d57"
+      ],
+      "category": "exact",
+      "language": "mixed",
+      "begin": "",
+      "end": "",
+      "ranked": [
+        "d57"
+      ],
+      "rewriteCalled": true
+    },
+    {
+      "id": "q13",
+      "question": "自然语言处理",
+      "relevant": [
+        "d5",
+        "d31",
+        "d50"
+      ],
+      "category": "alias",
+      "language": "Chinese",
+      "begin": "",
+      "end": "",
+      "ranked": [
+        "d50",
+        "d5"
+      ],
+      "rewriteCalled": true
+    },
+    {
+      "id": "q14",
+      "question": "NLP 课程",
+      "relevant": [
+        "d5",
+        "d31",
+        "d50"
+      ],
+      "category": "alias",
+      "language": "mixed",
+      "begin": "",
+      "end": "",
+      "ranked": [
+        "d5",
+        "d50",
+        "d16"
+      ],
+      "rewriteCalled": false
+    },
+    {
+      "id": "q15",
+      "question": "隐马尔可夫",
+      "relevant": [
+        "d5"
+      ],
+      "category": "exact",
+      "language": "Chinese",
+      "begin": "",
+      "end": "",
+      "ranked": [
+        "d5"
+      ],
+      "rewriteCalled": false
+    },
+    {
+      "id": "q16",
+      "question": "HMM",
+      "relevant": [
+        "d5"
+      ],
+      "category": "alias",
+      "language": "English",
+      "begin": "",
+      "end": "",
+      "ranked": [],
+      "rewriteCalled": true
+    },
+    {
+      "id": "q17",
+      "question": "BPE",
+      "relevant": [
+        "d32"
+      ],
+      "category": "alias",
+      "language": "English",
+      "begin": "",
+      "end": "",
+      "ranked": [],
+      "rewriteCalled": true
+    },
+    {
+      "id": "q18",
+      "question": "字节对编码",
+      "relevant": [
+        "d32"
+      ],
+      "category": "alias",
+      "language": "Chinese",
+      "begin": "",
+      "end": "",
+      "ranked": [],
+      "rewriteCalled": true
+    },
+    {
+      "id": "q19",
+      "question": "结构化查询语言数据库",
+      "relevant": [
+        "d8",
+        "d16"
+      ],
+      "category": "alias",
+      "language": "Chinese",
+      "begin": "",
+      "end": "",
+      "ranked": [],
+      "rewriteCalled": true
+    },
+    {
+      "id": "q20",
+      "question": "层叠样式表",
+      "relevant": [
+        "d57"
+      ],
+      "category": "alias",
+      "language": "Chinese",
+      "begin": "",
+      "end": "",
+      "ranked": [],
+      "rewriteCalled": true
+    },
+    {
+      "id": "q21",
+      "question": "语言模型训练",
+      "relevant": [
+        "d1",
+        "d26",
+        "d37",
+        "d51"
+      ],
+      "category": "semantic",
+      "language": "Chinese",
+      "begin": "",
+      "end": "",
+      "ranked": [
+        "d37",
+        "d51",
+        "d43",
+        "d1",
+        "d26"
+      ],
+      "rewriteCalled": true
+    },
+    {
+      "id": "q22",
+      "question": "最近有没有训练生成模型？",
+      "relevant": [
+        "d1",
+        "d26",
+        "d37"
+      ],
+      "category": "semantic",
+      "language": "Chinese",
+      "begin": "",
+      "end": "",
+      "ranked": [
+        "d37",
+        "d51",
+        "d43",
+        "d1",
+        "d26"
+      ],
+      "rewriteCalled": true
+    },
+    {
+      "id": "q23",
+      "question": "我什么时候调过 GPT？",
+      "relevant": [
+        "d1",
+        "d26",
+        "d37"
+      ],
+      "category": "paraphrase",
+      "language": "mixed",
+      "begin": "",
+      "end": "",
+      "ranked": [
+        "d51",
+        "d43",
+        "d37",
+        "d26",
+        "d1"
+      ],
+      "rewriteCalled": true
+    },
+    {
+      "id": "q24",
+      "question": "文本编码",
+      "relevant": [
+        "d2",
+        "d27",
+        "d32",
+        "d38"
+      ],
+      "category": "semantic",
+      "language": "Chinese",
+      "begin": "",
+      "end": "",
+      "ranked": [
+        "d44",
+        "d38",
+        "d32",
+        "d27",
+        "d2"
+      ],
+      "rewriteCalled": true
+    },
+    {
+      "id": "q25",
+      "question": "分词相关的工作",
+      "relevant": [
+        "d2",
+        "d32",
+        "d38"
+      ],
+      "category": "semantic",
+      "language": "Chinese",
+      "begin": "",
+      "end": "",
+      "ranked": [
+        "d44",
+        "d38",
+        "d32",
+        "d2"
+      ],
+      "rewriteCalled": true
+    },
+    {
+      "id": "q26",
+      "question": "我什么时候处理 token？",
+      "relevant": [
+        "d2",
+        "d32",
+        "d38"
+      ],
+      "category": "paraphrase",
+      "language": "mixed",
+      "begin": "",
+      "end": "",
+      "ranked": [
+        "d44",
+        "d38",
+        "d2"
+      ],
+      "rewriteCalled": true
+    },
+    {
+      "id": "q27",
+      "question": "最近爬了什么山？",
+      "relevant": [
+        "d3",
+        "d10",
+        "d28",
+        "d39",
+        "d59"
+      ],
+      "category": "semantic",
+      "language": "Chinese",
+      "begin": "",
+      "end": "",
+      "ranked": [
+        "d39",
+        "d28",
+        "d10",
+        "d59",
+        "d42",
+        "d3"
+      ],
+      "rewriteCalled": true
+    },
+    {
+      "id": "q28",
+      "question": "贵州旅行去了哪里？",
+      "relevant": [
+        "d3",
+        "d10"
+      ],
+      "category": "paraphrase",
+      "language": "Chinese",
+      "begin": "",
+      "end": "",
+      "ranked": [
+        "d42",
+        "d9",
+        "d3"
+      ],
+      "rewriteCalled": true
+    },
+    {
+      "id": "q29",
+      "question": "最近做了什么运动？",
+      "relevant": [
+        "d4",
+        "d11",
+        "d17",
+        "d22",
+        "d28",
+        "d29",
+        "d39",
+        "d40",
+        "d59"
+      ],
+      "category": "semantic",
+      "language": "Chinese",
+      "begin": "",
+      "end": "",
+      "ranked": [
+        "d41",
+        "d40",
+        "d33",
+        "d29",
+        "d22",
+        "d17",
+        "d14",
+        "d11",
+        "d4"
+      ],
+      "rewriteCalled": true
+    },
+    {
+      "id": "q30",
+      "question": "体育活动",
+      "relevant": [
+        "d4",
+        "d11",
+        "d17",
+        "d22",
+        "d29",
+        "d40"
+      ],
+      "category": "semantic",
+      "language": "Chinese",
+      "begin": "",
+      "end": "",
+      "ranked": [],
+      "rewriteCalled": true
+    },
+    {
+      "id": "q31",
+      "question": "哪天自己下厨了？",
+      "relevant": [
+        "d12",
+        "d30",
+        "d60"
+      ],
+      "category": "semantic",
+      "language": "Chinese",
+      "begin": "",
+      "end": "",
+      "ranked": [
+        "d60",
+        "d12",
+        "d30"
+      ],
+      "rewriteCalled": true
+    },
+    {
+      "id": "q32",
+      "question": "我最近做过哪些家务？",
+      "relevant": [
+        "d18",
+        "d19"
+      ],
+      "category": "semantic",
+      "language": "Chinese",
+      "begin": "",
+      "end": "",
+      "ranked": [
+        "d19",
+        "d18"
+      ],
+      "rewriteCalled": true
+    },
+    {
+      "id": "q33",
+      "question": "什么时候练习水上运动？",
+      "relevant": [
+        "d22"
+      ],
+      "category": "semantic",
+      "language": "Chinese",
+      "begin": "",
+      "end": "",
+      "ranked": [],
+      "rewriteCalled": true
+    },
+    {
+      "id": "q34",
+      "question": "处理过网页界面问题吗？",
+      "relevant": [
+        "d7",
+        "d57"
+      ],
+      "category": "semantic",
+      "language": "Chinese",
+      "begin": "",
+      "end": "",
+      "ranked": [],
+      "rewriteCalled": true
+    },
+    {
+      "id": "q35",
+      "question": "我什么时候整理版本历史？",
+      "relevant": [
+        "d23"
+      ],
+      "category": "semantic",
+      "language": "Chinese",
+      "begin": "",
+      "end": "",
+      "ranked": [],
+      "rewriteCalled": true
+    },
+    {
+      "id": "q36",
+      "question": "什么时候排查过并发错误？",
+      "relevant": [
+        "d58"
+      ],
+      "category": "semantic",
+      "language": "Chinese",
+      "begin": "",
+      "end": "",
+      "ranked": [],
+      "rewriteCalled": true
+    },
+    {
+      "id": "q37",
+      "question": "修过网络问题吗？",
+      "relevant": [
+        "d24"
+      ],
+      "category": "paraphrase",
+      "language": "Chinese",
+      "begin": "",
+      "end": "",
+      "ranked": [],
+      "rewriteCalled": true
+    },
+    {
+      "id": "q38",
+      "question": "我做过哪些课程作业？",
+      "relevant": [
+        "d5",
+        "d14",
+        "d15",
+        "d16",
+        "d33"
+      ],
+      "category": "semantic",
+      "language": "Chinese",
+      "begin": "",
+      "end": "",
+      "ranked": [],
+      "rewriteCalled": true
+    },
+    {
+      "id": "q39",
+      "question": "做过什么数据库工作？",
+      "relevant": [
+        "d8",
+        "d16"
+      ],
+      "category": "paraphrase",
+      "language": "Chinese",
+      "begin": "",
+      "end": "",
+      "ranked": [],
+      "rewriteCalled": true
+    },
+    {
+      "id": "q40",
+      "question": "关于文本清洗的程序",
+      "relevant": [
+        "d6"
+      ],
+      "category": "semantic",
+      "language": "Chinese",
+      "begin": "",
+      "end": "",
+      "ranked": [],
+      "rewriteCalled": true
+    },
+    {
+      "id": "q41",
+      "question": "trained language models",
+      "relevant": [
+        "d1",
+        "d26",
+        "d37",
+        "d51"
+      ],
+      "category": "semantic",
+      "language": "English",
+      "begin": "",
+      "end": "",
+      "ranked": [
+        "d37",
+        "d51",
+        "d43",
+        "d26",
+        "d1",
+        "d31"
+      ],
+      "rewriteCalled": true
+    },
+    {
+      "id": "q42",
+      "question": "text tokenization work",
+      "relevant": [
+        "d2",
+        "d32",
+        "d38"
+      ],
+      "category": "semantic",
+      "language": "English",
+      "begin": "",
+      "end": "",
+      "ranked": [
+        "d44",
+        "d38",
+        "d32",
+        "d27",
+        "d2"
+      ],
+      "rewriteCalled": true
+    },
+    {
+      "id": "q43",
+      "question": "mountain trips",
+      "relevant": [
+        "d3",
+        "d10",
+        "d28",
+        "d39",
+        "d59"
+      ],
+      "category": "semantic",
+      "language": "English",
+      "begin": "",
+      "end": "",
+      "ranked": [
+        "d39",
+        "d28",
+        "d10",
+        "d59",
+        "d42",
+        "d3"
+      ],
+      "rewriteCalled": true
+    },
+    {
+      "id": "q44",
+      "question": "sports I participated in",
+      "relevant": [
+        "d4",
+        "d11",
+        "d17",
+        "d22",
+        "d29",
+        "d40"
+      ],
+      "category": "semantic",
+      "language": "English",
+      "begin": "",
+      "end": "",
+      "ranked": [
+        "d29",
+        "d27",
+        "d26",
+        "d58",
+        "d32",
+        "d31",
+        "d30"
+      ],
+      "rewriteCalled": true
+    },
+    {
+      "id": "q45",
+      "question": "meals I cooked",
+      "relevant": [
+        "d12",
+        "d30",
+        "d60"
+      ],
+      "category": "semantic",
+      "language": "English",
+      "begin": "",
+      "end": "",
+      "ranked": [
+        "d60",
+        "d12",
+        "d30"
+      ],
+      "rewriteCalled": true
+    },
+    {
+      "id": "q46",
+      "question": "fixing asynchronous bugs",
+      "relevant": [
+        "d58"
+      ],
+      "category": "paraphrase",
+      "language": "English",
+      "begin": "",
+      "end": "",
+      "ranked": [],
+      "rewriteCalled": true
+    },
+    {
+      "id": "q47",
+      "question": "HTTP 重试测试",
+      "relevant": [
+        "d25"
+      ],
+      "category": "paraphrase",
+      "language": "mixed",
+      "begin": "",
+      "end": "",
+      "ranked": [
+        "d25"
+      ],
+      "rewriteCalled": true
+    },
+    {
+      "id": "q48",
+      "question": "模型 loss 调参",
+      "relevant": [
+        "d1",
+        "d37",
+        "d51"
+      ],
+      "category": "paraphrase",
+      "language": "mixed",
+      "begin": "",
+      "end": "",
+      "ranked": [
+        "d51",
+        "d5",
+        "d1"
+      ],
+      "rewriteCalled": true
+    },
+    {
+      "id": "q49",
+      "question": "骑车出游",
+      "relevant": [
+        "d17"
+      ],
+      "category": "paraphrase",
+      "language": "Chinese",
+      "begin": "",
+      "end": "",
+      "ranked": [],
+      "rewriteCalled": true
+    },
+    {
+      "id": "q50",
+      "question": "音乐演出",
+      "relevant": [
+        "d35"
+      ],
+      "category": "semantic",
+      "language": "Chinese",
+      "begin": "",
+      "end": "",
+      "ranked": [],
+      "rewriteCalled": true
+    },
+    {
+      "id": "q51",
+      "question": "照顾植物",
+      "relevant": [
+        "d18"
+      ],
+      "category": "semantic",
+      "language": "Chinese",
+      "begin": "",
+      "end": "",
+      "ranked": [],
+      "rewriteCalled": true
+    },
+    {
+      "id": "q52",
+      "question": "宠物体检",
+      "relevant": [
+        "d55"
+      ],
+      "category": "paraphrase",
+      "language": "Chinese",
+      "begin": "",
+      "end": "",
+      "ranked": [],
+      "rewriteCalled": true
+    },
+    {
+      "id": "q53",
+      "question": "数据备份",
+      "relevant": [
+        "d56"
+      ],
+      "category": "paraphrase",
+      "language": "Chinese",
+      "begin": "",
+      "end": "",
+      "ranked": [],
+      "rewriteCalled": true
+    },
+    {
+      "id": "q54",
+      "question": "校园公益",
+      "relevant": [
+        "d34"
+      ],
+      "category": "semantic",
+      "language": "Chinese",
+      "begin": "",
+      "end": "",
+      "ranked": [],
+      "rewriteCalled": true
+    },
+    {
+      "id": "q55",
+      "question": "读书",
+      "relevant": [
+        "d13"
+      ],
+      "category": "exact",
+      "language": "Chinese",
+      "begin": "",
+      "end": "",
+      "ranked": [
+        "d13"
+      ],
+      "rewriteCalled": false
+    },
+    {
+      "id": "q56",
+      "question": "成都",
+      "relevant": [
+        "d20",
+        "d21",
+        "d46"
+      ],
+      "category": "exact",
+      "language": "Chinese",
+      "begin": "",
+      "end": "",
+      "ranked": [
+        "d46",
+        "d21",
+        "d20"
+      ],
+      "rewriteCalled": false
+    },
+    {
+      "id": "q57",
+      "question": "索道",
+      "relevant": [
+        "d3"
+      ],
+      "category": "exact",
+      "language": "Chinese",
+      "begin": "",
+      "end": "",
+      "ranked": [
+        "d3"
+      ],
+      "rewriteCalled": false
+    },
+    {
+      "id": "q58",
+      "question": "游泳",
+      "relevant": [
+        "d44"
+      ],
+      "category": "exact",
+      "language": "Chinese",
+      "begin": "",
+      "end": "",
+      "ranked": [
+        "d45"
+      ],
+      "rewriteCalled": false
+    },
+    {
+      "id": "q59",
+      "question": "合并冲突",
+      "relevant": [
+        "d23"
+      ],
+      "category": "exact",
+      "language": "Chinese",
+      "begin": "",
+      "end": "",
+      "ranked": [
+        "d23"
+      ],
+      "rewriteCalled": false
+    },
+    {
+      "id": "q60",
+      "question": "matrix eigenvalues",
+      "relevant": [
+        "d14"
+      ],
+      "category": "semantic",
+      "language": "English",
+      "begin": "",
+      "end": "",
+      "ranked": [],
+      "rewriteCalled": true
+    },
+    {
+      "id": "q61",
+      "question": "operating system scheduling",
+      "relevant": [
+        "d15"
+      ],
+      "category": "semantic",
+      "language": "English",
+      "begin": "",
+      "end": "",
+      "ranked": [],
+      "rewriteCalled": true
+    },
+    {
+      "id": "q62",
+      "question": "概率论",
+      "relevant": [
+        "d33"
+      ],
+      "category": "exact",
+      "language": "Chinese",
+      "begin": "",
+      "end": "",
+      "ranked": [
+        "d33"
+      ],
+      "rewriteCalled": false
+    },
+    {
+      "id": "q63",
+      "question": "日出",
+      "relevant": [
+        "d39"
+      ],
+      "category": "exact",
+      "language": "Chinese",
+      "begin": "",
+      "end": "",
+      "ranked": [
+        "d39"
+      ],
+      "rewriteCalled": false
+    },
+    {
+      "id": "q64",
+      "question": "猫",
+      "relevant": [
+        "d55"
+      ],
+      "category": "exact",
+      "language": "Chinese",
+      "begin": "",
+      "end": "",
+      "ranked": [],
+      "rewriteCalled": true
+    },
+    {
+      "id": "q65",
+      "question": "nanoGPT",
+      "relevant": [
+        "d1"
+      ],
+      "category": "exact",
+      "language": "English",
+      "begin": "2026-08-01",
+      "end": "2026-08-31",
+      "ranked": [
+        "d1"
+      ],
+      "rewriteCalled": false
+    },
+    {
+      "id": "q66",
+      "question": "tokenizer",
+      "relevant": [
+        "d38",
+        "d44"
+      ],
+      "category": "exact",
+      "language": "English",
+      "begin": "2026-09-01",
+      "end": "2026-09-30",
+      "ranked": [
+        "d44",
+        "d38"
+      ],
+      "rewriteCalled": false
+    },
+    {
+      "id": "q67",
+      "question": "运动",
+      "relevant": [
+        "d40"
+      ],
+      "category": "semantic",
+      "language": "Chinese",
+      "begin": "2026-09-08",
+      "end": "2026-09-10",
+      "ranked": [],
+      "rewriteCalled": true
+    },
+    {
+      "id": "q68",
+      "question": "爬山",
+      "relevant": [
+        "d39",
+        "d59"
+      ],
+      "category": "semantic",
+      "language": "Chinese",
+      "begin": "2026-09-01",
+      "end": "2026-09-30",
+      "ranked": [],
+      "rewriteCalled": true
+    },
+    {
+      "id": "q69",
+      "question": "NLP",
+      "relevant": [
+        "d5"
+      ],
+      "category": "alias",
+      "language": "English",
+      "begin": "2026-08-01",
+      "end": "2026-08-31",
+      "ranked": [
+        "d5"
+      ],
+      "rewriteCalled": false
+    },
+    {
+      "id": "q70",
+      "question": "模型训练",
+      "relevant": [
+        "d37",
+        "d51"
+      ],
+      "category": "semantic",
+      "language": "Chinese",
+      "begin": "2026-09-01",
+      "end": "2026-09-30",
+      "ranked": [
+        "d51"
+      ],
+      "rewriteCalled": false
+    },
+    {
+      "id": "q71",
+      "question": "我去了哪里旅行？",
+      "relevant": [
+        "d3",
+        "d10",
+        "d20",
+        "d28",
+        "d39",
+        "d59"
+      ],
+      "category": "semantic",
+      "language": "Chinese",
+      "begin": "",
+      "end": "",
+      "ranked": [],
+      "rewriteCalled": true
+    },
+    {
+      "id": "q72",
+      "question": "中文标点切分",
+      "relevant": [
+        "d38"
+      ],
+      "category": "exact",
+      "language": "Chinese",
+      "begin": "",
+      "end": "",
+      "ranked": [
+        "d38"
+      ],
+      "rewriteCalled": false
+    },
+    {
+      "id": "q73",
+      "question": "钢琴",
+      "relevant": [
+        "d35"
+      ],
+      "category": "exact",
+      "language": "Chinese",
+      "begin": "",
+      "end": "",
+      "ranked": [
+        "d35"
+      ],
+      "rewriteCalled": false
+    },
+    {
+      "id": "q74",
+      "question": "买生活用品",
+      "relevant": [
+        "d54"
+      ],
+      "category": "semantic",
+      "language": "Chinese",
+      "begin": "",
+      "end": "",
+      "ranked": [],
+      "rewriteCalled": true
+    },
+    {
+      "id": "q75",
+      "question": "户外摄影",
+      "relevant": [
+        "d53"
+      ],
+      "category": "semantic",
+      "language": "Chinese",
+      "begin": "",
+      "end": "",
+      "ranked": [],
+      "rewriteCalled": true
+    },
+    {
+      "id": "q76",
+      "question": "话剧排练",
+      "relevant": [
+        "d36"
+      ],
+      "category": "paraphrase",
+      "language": "Chinese",
+      "begin": "",
+      "end": "",
+      "ranked": [],
+      "rewriteCalled": true
+    },
+    {
+      "id": "q77",
+      "question": "咖喱鸡",
+      "relevant": [
+        "d60"
+      ],
+      "category": "exact",
+      "language": "Chinese",
+      "begin": "",
+      "end": "",
+      "ranked": [
+        "d60"
+      ],
+      "rewriteCalled": false
+    },
+    {
+      "id": "q78",
+      "question": "文件完整性校验",
+      "relevant": [
+        "d52",
+        "d56"
+      ],
+      "category": "semantic",
+      "language": "Chinese",
+      "begin": "",
+      "end": "",
+      "ranked": [],
+      "rewriteCalled": true
+    },
+    {
+      "id": "q79",
+      "question": "代码测试",
+      "relevant": [
+        "d8",
+        "d25"
+      ],
+      "category": "semantic",
+      "language": "Chinese",
+      "begin": "",
+      "end": "",
+      "ranked": [],
+      "rewriteCalled": true
+    },
+    {
+      "id": "q80",
+      "question": "吃成都小吃",
+      "relevant": [
+        "d21"
+      ],
+      "category": "paraphrase",
+      "language": "Chinese",
+      "begin": "",
+      "end": "",
+      "ranked": [],
+      "rewriteCalled": true
+    }
+  ]
+}

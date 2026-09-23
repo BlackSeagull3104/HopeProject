@@ -17,7 +17,7 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / 'src'))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from corpus import dataset
-from hope_archive.ai_assistant import query_terms
+from hope_archive.ai_assistant import query_terms, lexical_terms
 from hope_archive.search import SearchIndex
 
 
@@ -52,7 +52,7 @@ def evaluate():
         with closing(index.connect()) as db: ids={r['id']:r['original_id'] for r in db.execute('SELECT id,original_id FROM entries')}
         report={'datasetSha256':data_hash,'diaries':len(diaries),'queries':len(queries),
                 'indexBuildMs':round(build_ms,3),'indexBytes':index.path.stat().st_size,'strategies':{}}
-        for name,terms in [('literal',lambda q:[q]),('v2_alias',query_terms)]:
+        for name,terms in [('literal',lambda q:[q]),('v2_alias',lexical_terms),('v3_concepts',query_terms)]:
             rows=[];timings=[]
             for q in queries:
                 start=perf_counter()

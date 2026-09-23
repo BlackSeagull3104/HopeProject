@@ -5,6 +5,7 @@ import re
 import sys
 
 from . import ai
+from . import retrieval
 from .diary_types import LABELS
 
 MAX_QUESTION = 500
@@ -47,7 +48,7 @@ def validate_date_range(begin='', end=''):
         raise AssistantError('日期范围无效。') from None
 
 
-def query_terms(question):
+def lexical_terms(question, strict=False):
     """Small deterministic expansion; lexical limits stay visible and testable."""
     if not isinstance(question, str) or not question.strip() or len(question) > MAX_QUESTION:
         raise AssistantError('请输入 1–500 字符的问题。')
@@ -55,7 +56,8 @@ def query_terms(question):
     expanded = []
     lowered = value.casefold()
     for needle, values in ALIASES.items():
-        if needle in lowered:
+        if (re.search(r'(?<![a-z0-9])' + re.escape(needle) + r'(?![a-z0-9])', lowered)
+                if strict and needle.isascii() else needle in lowered):
             expanded.extend(values)
     cleaned = value
     for phrase in STOP:
@@ -71,6 +73,10 @@ def query_terms(question):
     return result[:12]
 
 
+def query_terms(question):
+    return retrieval.expand_terms(question, lexical_terms(question, strict=True))
+
+
 def development_diagnostics(index, question, begin='', end='', category='all'):
     """Opt-in local diagnostic for synthetic development archives; never an API route."""
     if getattr(sys, 'frozen', False) or os.environ.get('HOPE_AI_DEBUG') != '1':
@@ -78,7 +84,9 @@ def development_diagnostics(index, question, begin='', end='', category='all'):
     terms = query_terms(question)
     entries = index.retrieve(question, terms, begin, end, category, 50)
     selected = select_chunks(entries)
-    return {'terms': terms, 'candidateCount': len(entries), 'selectedChunks': len(selected),
+    return {'terms': terms, 'confidence': retrieval.confidence(question, entries),
+            'reasons': [retrieval.reasons(question, terms, e) for e in entries[:TOP_K]],
+            'candidateCount': len(entries), 'selectedChunks': len(selected),
             'truncated': len(entries) > TOP_K or sum(len(e['body']) for e in entries) > MAX_CONTEXT_CHARS,
             'scores': [sum(e['body'].casefold().count(t.casefold()) for t in terms) for e in entries[:TOP_K]]}
 

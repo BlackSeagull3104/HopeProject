@@ -49,6 +49,18 @@ def main():
             headers = {'X-Hope-Desktop': key, 'Content-Type': 'application/json', 'X-Hope-Client': 'react'}
             with urlopen(Request(base + '/search/query', data=json.dumps({'root': str(root), 'query': 'searchable'}).encode(), headers=headers), timeout=10) as response:
                 assert json.load(response)['total'] == 1
+            # New v3 local concept route, using only the isolated synthetic profile.
+            archive = Path(env['HOPE_ARCHIVE_HOME']) / 'archives'
+            archive.mkdir(parents=True, exist_ok=True)
+            (archive / 'diaries.normalized.json').write_text(json.dumps({'diaries': [
+                {'id':'v3-fixture','note_date':'2026-09-01','diary_type':'discovery_diary',
+                 'original_text':'今天继续跑 nanoGPT。'}]}), encoding='utf-8')
+            with urlopen(Request(base + '/library/search/query', data=json.dumps({
+                'query':'语言模型训练','contentType':'diary','related':True}).encode(),headers=headers),timeout=10) as response:
+                related = json.load(response)
+                assert related['total'] == 1
+                assert 'nanoGPT' in related['items'][0]['snippet']
+                assert str(archive) not in json.dumps(related)
             with urlopen(Request(base + '/ai/presets', data=b'{}', headers=headers), timeout=5) as response:
                 assert len(json.load(response)['presets']) == 11
             # Exercise the packaged v2 route without reading credentials or calling a provider.
@@ -67,7 +79,7 @@ def main():
             # Do not trigger a real SMS or login request during packaging.
             process.stdin.write('shutdown\n'); process.stdin.flush()
             assert process.wait(timeout=10) == 0
-            print('PASS: frozen backend startup, HTTP, writable profile, bundled protocol readiness, owner isolation, FTS5 search, AI presets and clean shutdown.')
+            print('PASS: frozen backend startup, HTTP, writable profile, bundled protocol readiness, owner isolation, FTS5 and v3 concept search, AI privacy boundary, AI presets and clean shutdown.')
         finally:
             if process.poll() is None:
                 try:
