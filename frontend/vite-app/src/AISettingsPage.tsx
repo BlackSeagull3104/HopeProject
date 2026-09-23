@@ -242,8 +242,8 @@ export function AISettingsPage() {
       <h1 className="text-3xl font-semibold">AI API 设置</h1>
       <p className="text-sm leading-6 text-muted-foreground">
         使用你自己的第三方模型 API Key。本机 Windows
-        凭据管理器保存密钥，调用时只发送到所选服务商。AI 日记助手先在本机检索，再只把最多 8
-        个相关日记片段与当前问题发送给你选择的服务商；不会发送整个归档、内部文件路径或 API
+        凭据管理器保存密钥，调用时只发送到所选服务商。问日记模式先在本机检索，每次最多发送 8
+        个相关片段；回顾和时间线按所选范围分批处理，已选日记模式只处理明确勾选的条目。较大回顾会先显示篇数与预计请求数并再次确认。不会发送内部文件路径或 API
         Key。Hope Archive 不运营中转 AI 服务器。
       </p>
       {error && (

@@ -24,9 +24,11 @@ function label(item: Item | Detail) {
 export function SearchPage({
   session,
   onArchive,
+  onSelectForAI,
 }: {
   session?: Session
   onArchive: () => void
+  onSelectForAI: (ids: string[]) => void
 }) {
   const [query, setQuery] = useState("")
   const [beginDate, setBegin] = useState("")
@@ -45,6 +47,7 @@ export function SearchPage({
     contentType: "all",
   })
   const [detail, setDetail] = useState<Detail | null>(null)
+  const [selected, setSelected] = useState<string[]>([])
   async function search(more = false) {
     setBusy(true)
     setError("")
@@ -54,6 +57,7 @@ export function SearchPage({
       ? applied
       : { query, beginDate, endDate, diaryType, contentType }
     if (!more) setResults(null)
+    if (!more) setSelected([])
     try {
       const data = await request<Results>(
         "/library/search/query",
@@ -195,12 +199,14 @@ export function SearchPage({
           </p>
         )}
       </div>
+      {!!selected.length && <Button onClick={() => onSelectForAI(selected)}>用 AI 查看已选日记（{selected.length}）</Button>}
       {!error &&
         results?.items.map((item) => (
+          <div key={item.id} className="flex items-start gap-3">
+          {item.contentType === "diary" && <label className="mt-5 text-sm"><input type="checkbox" aria-label={`选择 ${item.date} ${item.title || "日记"}`} checked={selected.includes(item.id)} onChange={(event) => setSelected((current) => event.target.checked ? [...current, item.id] : current.filter((id) => id !== item.id))} /> 选</label>}
           <button
-            key={item.id}
             disabled={busy}
-            className="block w-full rounded-xl border p-5 text-left hover:bg-muted/50"
+            className="block min-w-0 flex-1 rounded-xl border p-5 text-left hover:bg-muted/50"
             onClick={async () => {
               setBusy(true)
               setError("")
@@ -232,6 +238,7 @@ export function SearchPage({
             </p>
 
           </button>
+          </div>
         ))}
       {results && results.nextOffset < results.total && (
         <Button

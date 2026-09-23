@@ -272,6 +272,7 @@ function OpenedCapsules({
 export function App() {
   const [session, setSession] = useState<Session | null>(null)
   const [page, setPage] = useState<Page>("preview")
+  const [aiSelectedIds, setAiSelectedIds] = useState<string[]>([])
   const [login, setLogin] = useState(false)
   const [preferences, setPreferences] = useState<Preferences>({
     exportRoot: "",
@@ -349,6 +350,7 @@ export function App() {
               try {
                 await request("/auth/logout", {}, session)
                 setSession(null)
+                setAiSelectedIds([])
               } catch (c) {
                 setError(String(c))
               }
@@ -389,12 +391,14 @@ export function App() {
             key={session?.token || "offline"}
             session={session ?? undefined}
             onArchive={() => setPage("archive")}
+            onSelectForAI={(ids) => { setAiSelectedIds(ids); setPage("ai") }}
           />
         )}
         {page === "ai" && (
           <AIAssistantPage
             key={session?.token || "offline"}
             session={session ?? undefined}
+            selectedIds={aiSelectedIds}
             onSettings={() => setPage("settings")}
             onArchive={() => setPage("archive")}
           />
@@ -424,6 +428,7 @@ export function App() {
           onClose={() => setLogin(false)}
           onLogin={(value) => {
             setSession(value)
+            setAiSelectedIds([])
             setLogin(false)
           }}
         />

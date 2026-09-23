@@ -7,7 +7,8 @@ const source = await readFile(new URL("../src/AIAssistantPage.tsx", import.meta.
 test("assistant requires a first-use disclosure and exposes source navigation", () => {
   assert.match(source, /只将回答当前问题所需的相关日记片段/)
   assert.match(source, /最多 8 个相关日记片段/)
-  assert.match(source, /不会发送完整归档、内部路径或 API Key/)
+  assert.match(source, /不会发送完整归档/)
+  assert.match(source, /内部路径或 API Key/)
   assert.match(source, /\/library\/ai\/ask/)
   assert.match(source, /\/library\/search\/detail/)
 })
