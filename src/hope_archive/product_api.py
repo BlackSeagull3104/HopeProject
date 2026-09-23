@@ -41,7 +41,7 @@ def run_capsules(service, token, identity, user):
 
 def dispatch(service, method, path, body, token):
     from .local_api import RequestError, fields
-    from . import search
+    from . import search, ai, ai_assistant
     with service.lock:
         if not hasattr(service, 'preferences'):
             service.preferences = Settings(getattr(service, 'home', None))
@@ -78,6 +78,17 @@ def dispatch(service, method, path, body, token):
         if path == '/library/media':
             fields(body, ['key'])
             return service.library.media(body['key'], user_id)
+        if path.startswith('/library/ai/'):
+            with service.lock:
+                if service.ai_settings is None: service.ai_settings = ai.AISettings()
+            root = service.library.account_root(user_id) if user_id else service.library.root
+            assistant = ai_assistant.DiaryAssistant(search.SearchIndex(root, service.search_cache), service.ai_settings)
+            if path.endswith('/status'):
+                fields(body, [])
+                return assistant.status()
+            if path.endswith('/ask'):
+                return assistant.ask(body)
+            raise RequestError(404, '接口不存在。')
         if path.startswith('/library/search/'):
             root = service.library.account_root(user_id) if user_id else service.library.root
             index = search.SearchIndex(root, service.search_cache)
@@ -131,7 +142,7 @@ def dispatch(service, method, path, body, token):
         if path == '/library/capsules/export':
             fields(body, ['format'], ['ids'])
             return service.library.export_capsules(body, service.preferences.destination('capsules'), user_id)
-    except (ValueError, OSError, search.SearchError, ArchiveError) as exc:
+    except (ValueError, OSError, search.SearchError, ai.AIError, ai_assistant.AssistantError, ArchiveError) as exc:
         if isinstance(exc, OSError): raise RequestError(400, '无法读写本地文件，请检查文件夹权限。') from None
         raise RequestError(400, str(exc)) from None
     raise RequestError(404, '接口不存在。')

@@ -194,3 +194,22 @@ class AISettings:
         with self.lock:
             config, key = self._resolve(dict(body, model=body.get('model') or 'discovery'))
         return {'models': self.provider_factory(config, key).list_models()}
+
+    def configured(self):
+        """Return safe provider/model metadata; never return credential material."""
+        result = []
+        for provider in PRESETS:
+            metadata = self.metadata(provider)
+            if metadata['configured']:
+                result.append(dict(metadata, label=PRESETS[provider]['label']))
+        return result
+
+    def chat(self, provider, messages):
+        """Generate through one saved BYOK configuration without exposing its key."""
+        with self.lock:
+            saved = self._read(provider)
+            if saved is None:
+                raise AIError('所选 AI 服务商尚未配置，请前往「设置 → AI API 设置」。')
+            config = {key: saved[key] for key in ('provider', 'model', 'baseUrl')}
+            key = saved['apiKey']
+        return self.provider_factory(config, key).chat(messages)

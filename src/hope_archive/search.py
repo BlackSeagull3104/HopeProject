@@ -159,3 +159,54 @@ class SearchIndex:
             if row is None: raise SearchError('本地条目不存在或已更新，请重新搜索。')
             return dict(id=row['id'], date=row['day'], diaryType=row['category'], contentType=row['kind'], title=row['title'], body=row['body'])
         finally: db.close()
+
+    def diary_count(self):
+        self.sync()
+        db = self.connect()
+        try:
+            return db.execute("SELECT count(*) FROM entries WHERE kind='diary'").fetchone()[0]
+        finally: db.close()
+
+    def retrieve(self, question, terms, begin='', end='', category='all', limit=16):
+        """Rank diary entries locally for grounded QA; never returns source paths."""
+        if (not isinstance(question, str) or not isinstance(terms, list) or
+                any(not isinstance(term, str) or not term for term in terms)):
+            raise SearchError('检索问题无效。')
+        if category not in (*LABELS, 'all') or type(limit) is not int or not 1 <= limit <= 50:
+            raise SearchError('检索筛选无效。')
+        try:
+            if begin: date.fromisoformat(begin)
+            if end: date.fromisoformat(end)
+            if begin and end and begin > end: raise ValueError()
+        except (ValueError, TypeError): raise SearchError('日期范围无效。') from None
+        self.sync()
+        filters, args = ["kind='diary'"], []
+        if begin: filters.append('day>=?'); args.append(begin)
+        if end: filters.append('day<=?'); args.append(end)
+        if category != 'all': filters.append('category=?'); args.append(category)
+        lexical, lexical_args = [], []
+        for term in terms:
+            if len(term) >= 3:
+                lexical.append('entries.rowid IN (SELECT rowid FROM search_fts WHERE search_fts MATCH ?)')
+                lexical_args.append('"' + term.replace('"', '""') + '"')
+            else:
+                lexical.append('instr(lower(body),lower(?))>0'); lexical_args.append(term)
+        if lexical:
+            filters.append('(' + ' OR '.join(lexical) + ')'); args.extend(lexical_args)
+        elif not re.search(r'总结|回顾|最近|这段时间|一周|一月|月份', question):
+            return []
+        with LOCK:
+            db = self.connect()
+            try:
+                rows = db.execute('SELECT * FROM entries WHERE ' + ' AND '.join(filters), args).fetchall()
+            except sqlite3.Error:
+                raise SearchError('本地检索失败，请尝试重建索引。') from None
+            finally: db.close()
+        def score(row):
+            body = row['body'].casefold()
+            hits = sum((body.count(term.casefold()) * 4 + (6 if term.casefold() in (row['title'] or '').casefold() else 0)) for term in terms)
+            exact = 12 if question.strip().casefold() in body else 0
+            return hits + exact
+        # Resolve equal lexical scores deterministically, preferring newer diary evidence.
+        ranked = sorted(rows, key=lambda row: (score(row), row['day'] or '', row['id']), reverse=True)[:limit]
+        return [dict(id=row['id'], date=row['day'], diaryType=row['category'], title=row['title'], body=row['body']) for row in ranked]
