@@ -32,6 +32,11 @@ def valid_citations(answer, sources):
     return re.sub(r'\[来源 ([^\]]+)\]', lambda match: match.group(0) if match.group(1) in allowed else '', answer)
 
 
+def dated_citations(answer, sources):
+    dates = {s['id'][:12]: s['date'] or '日期未知' for s in sources}
+    return re.sub(r'\[来源 ([^\]]+)\]', lambda match: f'[{dates[match.group(1)]}]' if match.group(1) in dates else '', answer)
+
+
 def topic_evidence(entries):
     """Count literal, user-inspectable mentions, never infer traits or importance."""
     result = []
@@ -169,7 +174,7 @@ class WorkflowManager:
                 'large': plan['diaryCount'] > LARGE_DIARIES or plan['calls'] > 2,
                 'sources': plan['sources'] if plan['state'] == 'completed' else [],
                 'topics': plan['topics'] if plan['state'] == 'completed' else [],
-                'answer': plan['answer'] if plan['state'] == 'completed' else '',
+                'answer': dated_citations(plan['answer'], plan['sources']) if plan['state'] == 'completed' else '',
                 'error': plan['error'], 'truncated': plan['truncated']}
 
     def get(self, owner, plan_id):
@@ -250,6 +255,6 @@ class WorkflowManager:
         scope = f"范围：{plan['beginDate'] or '不限'} — {plan['endDate'] or '不限'}\n" if plan['mode'] != 'selected' else f"已选日记：{plan['diaryCount']} 篇\n"
         sources = '\n'.join(f"- {s['date'] or '日期未知'} · {LABELS.get(s['diaryType'], '日记')} · {s['title']}" for s in plan['sources'])
         content = (f'# {title}\n\nAI 生成摘要，请以原日记为准。\n\n生成时间：{now:%Y-%m-%d %H:%M:%S}\n'
-                   f'{scope}模型：{plan["providerLabel"]} / {plan["model"]}\n\n{plan["answer"]}\n\n## 来源\n\n{sources or "无"}\n')
+                   f'{scope}模型：{plan["providerLabel"]} / {plan["model"]}\n\n{dated_citations(plan["answer"], plan["sources"])}\n\n## 来源\n\n{sources or "无"}\n')
         write_exclusive(path, content.encode('utf-8'))
         return {'path': str(path), 'sources': len(plan['sources'])}

@@ -6,7 +6,7 @@ import time
 import unittest
 
 from hope_archive.ai import AIError
-from hope_archive.ai_workflows import WorkflowManager, valid_citations
+from hope_archive.ai_workflows import WorkflowManager, valid_citations, dated_citations
 from hope_archive.search import SearchIndex
 from hope_archive.ai_assistant import query_terms
 
@@ -170,6 +170,8 @@ class WorkflowTests(unittest.TestCase):
         self.assertNotIn(str(self.archive), output)
         self.assertNotIn('apiKey', output)
         self.assertNotIn('来源ID', output)
+        first_id = self.manager.get('synthetic', plan['id'])['sources'][0]['id']
+        self.assertNotIn(first_id[:12], output)
 
     def test_unknown_model_citation_is_removed(self):
         source = self.index.range_entries('2026-09-01', '2026-09-01')[0]
@@ -178,6 +180,7 @@ class WorkflowTests(unittest.TestCase):
             [{'id': source['id']}])
         self.assertIn(f'[来源 {marker}]', value)
         self.assertNotIn('fabricated', value)
+        self.assertIn('[2026-09-01]', dated_citations(value, [{'id': source['id'], 'date': source['date']}]))
 
     def test_malformed_and_duplicate_entries_do_not_expand_sources(self):
         self.entries.append(dict(self.entries[0]))
