@@ -5,6 +5,7 @@ import { pickDirectory, type ExportFormat } from "@/lib/export"
 import { DiaryPreview, MediaPreview } from "@/DiaryPreview"
 import { SearchPage } from "@/SearchPage"
 import { AISettingsPage } from "@/AISettingsPage"
+import { AIAssistantPage } from "@/AIAssistantPage"
 import { ArchivePage, OCRPage, FormatPicker, inputClass } from "@/ProductPages"
 
 const navigation = [
@@ -12,6 +13,7 @@ const navigation = [
   ["archive", "日记归档"],
   ["capsules", "时间胶囊"],
   ["search", "本地搜索"],
+  ["ai", "AI 日记助手"],
   ["ocr", "识图转文字"],
   ["settings", "设置"],
 ] as const
@@ -386,6 +388,14 @@ export function App() {
           <SearchPage
             key={session?.token || "offline"}
             session={session ?? undefined}
+            onArchive={() => setPage("archive")}
+          />
+        )}
+        {page === "ai" && (
+          <AIAssistantPage
+            key={session?.token || "offline"}
+            session={session ?? undefined}
+            onSettings={() => setPage("settings")}
             onArchive={() => setPage("archive")}
           />
         )}
