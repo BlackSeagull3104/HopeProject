@@ -6,16 +6,18 @@
 
 ### Windows
 
-[⬇ **Download Hope Archive for Windows**](https://github.com/BlackSeagull3104/HopeProject/releases/tag/v0.1.2-dev)
+[⬇ **Download Hope Archive for Windows**](https://github.com/BlackSeagull3104/HopeProject/releases/download/v0.2.0-alpha.2/HopeArchive-0.2.0-alpha.2-Setup.exe)
 
-> Development Preview · Windows x64 · v0.1.2-dev
+> Alpha Pre-release · Windows x64 · v0.2.0-alpha.2
 
-1. 下载 `Hope-Archive-v0.1.2-dev-windows-x64.zip`。
-2. 完整解压 ZIP，打开其中的 `Hope Archive` 文件夹。
-3. 双击 **Hope Archive.exe**；请保持 `hope-archive-backend.exe` 与它在同一目录。
+1. 下载 `HopeArchive-0.2.0-alpha.2-Setup.exe`。
+2. 双击安装包，按照提示完成安装。
+3. 从开始菜单打开 **Hope Archive**。
 4. 使用自己的 Hope 账号登录，或直接使用离线搜索与 AI 设置。
 
-无需 Python、Node.js、Rust、克隆仓库或手动配置协议常量。运行需要 Microsoft WebView2 Runtime；此 ZIP 不包含 WebView2 安装器。此次发布沿用已验证的最新构建，EXE 内部版本仍为 0.1.1；GitHub 标签 v0.1.2-dev 标识新增功能的源码里程碑。
+无需 Python、Node.js、Rust、克隆仓库或手动配置协议常量。运行需要 Microsoft WebView2 Runtime；缺少该组件时，安装程序会尝试联网下载并安装。
+
+[发布说明与全部下载文件](https://github.com/BlackSeagull3104/HopeProject/releases/tag/v0.2.0-alpha.2) · [校验清单（SHA-256）](https://github.com/BlackSeagull3104/HopeProject/releases/download/v0.2.0-alpha.2/HopeArchive-0.2.0-alpha.2-manifest.json)
 
 这是未签名开发预览，不是稳定版本。应用级协议常量随 Python 后端分发；手机号、密码、验证码、会话和日记不随安装包分发。
 
@@ -45,21 +47,21 @@ Hope Archive 还没有做完。现在的很多功能已经可以使用，但无�
 
 ## Features
 
-当前开发分支正在验证 `0.2.0-alpha.1` 候选：实验性 AI 日记助手，以及可选下载的本地 Hybrid 检索组件。以下带 `v0.1.2-dev` 的条目描述旧预览包，不代表该候选已发布；实现、隐私边界和验证范围见 [Hybrid 检索说明](docs/HYBRID_RETRIEVAL.md)。AI 尚未完成完整人工测试。
+`0.2.0-alpha.2` 包含实验性 AI 日记助手，以及可选下载的本地 Hybrid 检索组件。实现、隐私边界和验证范围见 [Hybrid 检索说明](docs/HYBRID_RETRIEVAL.md)。AI 尚未完成完整人工测试。
 
 - 通过现有短信/密码认证流程登录自己的账号。
 - 下载自己的日记与媒体，整理为本地 Markdown。
-- v0.1.2-dev 包含 Markdown、TeX、PDF、Word 导出、目录选择和昵称显示，见 [导出说明](docs/EXPORTS.md)。上方 v0.1.2-dev ZIP 已包含这些功能。
-- v0.1.2-dev 支持三类日记筛选与独立时间胶囊列表、详情、按需媒体保存；合成测试通过，真实账号验收待做，见 [使用与验证范围](docs/CATEGORIES_AND_CAPSULES.md)。
-- v0.1.2-dev 包含按日在线预览、明确认证错误反馈及昵称日期范围合并导出；真实账号验收待做，见 [预览与导出说明](docs/PREVIEW_UX.md)。
-- v0.1.2-dev 包含离线归档全文搜索及 Windows 凭据管理器保存的 BYOK AI 设置；不含 AI 日记分析，见 [搜索与 AI 隐私说明](docs/SEARCH_AI.md)。
+- Markdown、TeX、PDF、Word 导出、目录选择和昵称显示，见 [导出说明](docs/EXPORTS.md)。
+- 三类日记筛选与独立时间胶囊列表、详情、按需媒体保存；合成测试通过，真实账号验收待做，见 [使用与验证范围](docs/CATEGORIES_AND_CAPSULES.md)。
+- 按日在线预览、明确认证错误反馈及昵称日期范围合并导出；真实账号验收待做，见 [预览与导出说明](docs/PREVIEW_UX.md)。
+- 离线归档全文搜索及 Windows 凭据管理器保存的 BYOK AI 设置，见 [搜索与 AI 隐私说明](docs/SEARCH_AI.md)。
 - React 桌面界面与自动管理的 Python 后端。
 
 ## Usage
 
 登录后可直接按日期和类型预览 Hope 云端日记。选择一个「归档目录」，勾选格式后点击「归档日记」；程序自动更新 `backup/` 备份并生成 `archive/` 可阅读文档。PDF/Word 默认同时保留 Markdown。复制整个 `archive/` 即可带走成品及图片。
 
-设置与可重建搜索索引保存在 `%LOCALAPPDATA%\HopeArchive`。旧版该目录下的 `archives` 会在选择归档目录后安全复制到新备份，原件不删除。目录结构、迁移边界及 PDF 引擎决策见 [RC4 说明](docs/RC4_ARCHITECTURE.md)。上方已发布下载包不代表本地 RC4 已发布。只操作自己的数据；认证信息只在当前运行期间使用。
+设置与可重建搜索索引保存在 `%LOCALAPPDATA%\HopeArchive`。旧版该目录下的 `archives` 会在选择归档目录后安全复制到新备份，原件不删除。目录结构、迁移边界及 PDF 引擎决策见 [RC4 说明](docs/RC4_ARCHITECTURE.md)。只操作自己的数据；认证信息只在当前运行期间使用。
 
 ## Screenshots
 
