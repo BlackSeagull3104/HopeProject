@@ -114,9 +114,12 @@ material regression; no labels or RRF weights were changed. Raw local reports:
 - Both candidate installer welcome windows actually launched and were cancelled
   before installation. No existing installation was overwritten.
 - **Whole desktop startup/interaction verification is incomplete**: an existing
-  installed Hope Archive instance owns the single-instance identity. The isolated
-  test instance could not be independently inspected; the existing user's app was
-  not closed. Asked the user to close it. No full-desktop pass is claimed.
+  installed instance initially held the single-instance identity. After it exited,
+  the final candidate was launched with a separate synthetic QA profile and its
+  exact executable/window identity was observed. However, the automation helper
+  repeatedly reported a minimized window and user-input protection, preventing
+  content inspection. The computer-use recovery limit was reached; further UI
+  input was stopped. No rendered desktop/backend-interaction pass is claimed.
 
 ## Y–Z. Files and documentation
 
@@ -166,5 +169,5 @@ older CPUs/network conditions not comprehensively tested; unsigned pre-release.
 
 Human AI/provider interaction QA, cross-scale visual/accessibility QA, clean
 install/update/uninstall, large personal archives and older CPU testing remain.
-Automatic installer/window observations are not human QA. Once the old instance
-is closed, finish the actual desktop gate before considering any remote change.
+Automatic installer/window observations are not human QA. Finish the actual desktop
+gate in an uninterrupted, targetable QA window before considering any remote change.
