@@ -7,9 +7,11 @@ import sys
 
 destination = Path(sys.argv[1]) / 'THIRD_PARTY_NOTICES'
 destination.mkdir(parents=True, exist_ok=True)
+shutil.copyfile(Path(__file__).resolve().parents[1] / 'packaging/SEMANTIC_MODEL_NOTICE.txt',
+                destination / 'SEMANTIC_MODEL_NOTICE.txt')
 names = ['rapidocr','onnxruntime','opencv-python','numpy','shapely','pyclipper','omegaconf',
          'antlr4-python3-runtime','PyYAML','requests','Pillow','protobuf','flatbuffers','tqdm',
-         'colorlog','six','packaging','colorama','certifi','charset_normalizer','idna','urllib3']
+         'colorlog','six','packaging','colorama','certifi','charset_normalizer','idna','urllib3','tokenizers']
 inventory = []
 for name in names:
     dist = metadata.distribution(name)

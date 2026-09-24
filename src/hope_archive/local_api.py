@@ -360,6 +360,8 @@ def main():
     finally:
         server.shutdown()
         server.server_close()
+        if hasattr(server.service, 'semantic_service'):
+            server.service.semantic_service.close()
         server.service.pool.shutdown(wait=True)
 
 

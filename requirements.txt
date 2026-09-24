@@ -13,3 +13,6 @@ rapidocr==3.9.2
 onnxruntime==1.30.0
 opencv-python==5.0.0.93
 numpy==2.5.3
+
+# Optional local semantic worker tokenizer; model is never bundled/downloaded at startup.
+tokenizers==0.22.2

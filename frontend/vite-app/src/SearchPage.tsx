@@ -3,6 +3,8 @@ import { request, type Session } from "@/lib/api"
 import { DIARY_TYPES } from "@/lib/diary"
 import { Button } from "@/components/ui/button"
 import { highlightedParts } from "@/lib/search"
+import { RetrievalControl } from "@/RetrievalControl"
+import type { RetrievalMode, RetrievalResult } from "@/lib/retrieval"
 
 type Item = {
   id: string
@@ -12,7 +14,7 @@ type Item = {
   title: string
   snippet: string
 }
-type Results = { items: Item[]; total: number; nextOffset: number; limited?: boolean }
+type Results = { items: Item[]; total: number; nextOffset: number; limited?: boolean; retrieval?: RetrievalResult }
 type Detail = Omit<Item, "snippet"> & { body: string }
 const input = "h-10 rounded-lg border bg-background px-3 text-sm min-w-0"
 function label(item: Item | Detail) {
@@ -35,7 +37,7 @@ export function SearchPage({
   const [endDate, setEnd] = useState("")
   const [diaryType, setDiaryType] = useState("all")
   const [contentType, setContentType] = useState("all")
-  const [related, setRelated] = useState(false)
+  const [retrievalMode, setRetrievalMode] = useState<RetrievalMode>("FTS5")
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState("")
   const [message, setMessage] = useState("")
@@ -46,7 +48,7 @@ export function SearchPage({
     endDate: "",
     diaryType: "all",
     contentType: "all",
-    related: false,
+    retrievalMode: "FTS5" as RetrievalMode,
   })
   const [detail, setDetail] = useState<Detail | null>(null)
   const [selected, setSelected] = useState<string[]>([])
@@ -57,7 +59,7 @@ export function SearchPage({
     setDetail(null)
     const filters = more
       ? applied
-      : { query, beginDate, endDate, diaryType, contentType, related }
+      : { query, beginDate, endDate, diaryType, contentType, retrievalMode }
     if (!more) setResults(null)
     if (!more) setSelected([])
     try {
@@ -90,6 +92,10 @@ export function SearchPage({
       <Button variant="ghost" onClick={onArchive}>
         前往日记归档
       </Button>
+      <RetrievalControl mode={retrievalMode} session={session} disabled={busy} onChange={(mode) => {
+        setRetrievalMode(mode)
+        if (mode === "Hybrid") setContentType("diary")
+      }} />
       <fieldset disabled={busy} className="space-y-4">
         <form
           className="flex gap-2"
@@ -148,7 +154,7 @@ export function SearchPage({
             <select
               className={input}
               value={contentType}
-              disabled={related}
+              disabled={retrievalMode === "Hybrid"}
               onChange={(e) => setContentType(e.target.value)}
             >
               <option value="all">全部内容</option>
@@ -157,14 +163,7 @@ export function SearchPage({
             </select>
           </label>
         </div>
-        <label className="flex items-center gap-2 text-sm">
-          <input type="checkbox" checked={related} onChange={(e) => {
-            setRelated(e.target.checked)
-            if (e.target.checked) setContentType("diary")
-          }} />
-          本地相关词检索（仅日记，不联网）
-        </label>
-        {related && <p className="text-sm text-muted-foreground">使用有限的本地别名和概念词，按相关度显示最多 200 条候选；匹配不代表事件确实发生。</p>}
+        <p className="text-sm text-muted-foreground">日记按相关度显示最多 200 条候选；匹配不代表事件确实发生。全部内容和胶囊使用原有字面检索。</p>
         <Button
           variant="outline"
           onClick={async () => {
@@ -190,6 +189,7 @@ export function SearchPage({
         </Button>
       </fieldset>
       <div aria-live="polite">
+        {results?.retrieval?.fallback && <p role="status">{results.retrieval.fallback}</p>}
         {busy ? (
           <p>正在读取本地归档…</p>
         ) : error ? (

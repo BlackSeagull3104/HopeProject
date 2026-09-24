@@ -3,11 +3,14 @@ import { request, type Session } from "@/lib/api"
 import { DIARY_TYPES } from "@/lib/diary"
 import { presetRange, type AIMode, type DatePreset } from "@/lib/ai"
 import { Button } from "@/components/ui/button"
+import { RetrievalControl } from "@/RetrievalControl"
+import type { RetrievalMode, RetrievalResult } from "@/lib/retrieval"
 
 type Source = { id: string; date: string; diaryType: string; title: string; excerpt: string }
 type Provider = { provider: string; label: string; model: string }
 type Turn = { question: string; answer: string; sources: Source[] }
 type Plan = { id: string; state: "prepared" | "running" | "completed" | "failed" | "cancelled";
+  retrieval?: RetrievalResult;
   stage: string; diaryCount: number; chunkCount: number; calls: number; large: boolean;
   answer: string; sources: Source[]; error: string; truncated: boolean;
   topics: { topic: string; count: number; sources: Source[] }[] }
@@ -21,6 +24,7 @@ export function AIAssistantPage({ session, selectedIds, onSettings, onArchive }:
   session?: Session; selectedIds: string[]; onSettings: () => void; onArchive: () => void
 }) {
   const [providers, setProviders] = useState<Provider[]>([])
+  const [retrievalMode, setRetrievalMode] = useState<RetrievalMode>("FTS5")
   const [provider, setProvider] = useState("")
   const [mode, setMode] = useState<AIMode>(selectedIds.length ? "selected" : "ask")
   const [preset, setPreset] = useState<DatePreset>("7d")
@@ -73,18 +77,19 @@ export function AIAssistantPage({ session, selectedIds, onSettings, onArchive }:
           { role: "user", content: turn.question }, { role: "assistant", content: turn.answer },
         ])
         const sourceIds = turns.at(-1)?.sources.map((source) => source.id).slice(0, 8) || []
-        const result = await request<{ answer: string; sources: Source[]; retrieved: number; providerCalled: boolean }>(
+        const result = await request<{ answer: string; sources: Source[]; retrieved: number; providerCalled: boolean; retrieval?: RetrievalResult }>(
           "/library/ai/ask", { question: value, beginDate, endDate, diaryType, provider,
-            history, sourceIds, disclosureAccepted: true }, session)
+            history, sourceIds, retrievalMode, disclosureAccepted: true }, session)
         setTurns((current) => [...current, { question: value, answer: result.answer, sources: result.sources }].slice(-6))
         setQuestion("")
-        setMessage(result.providerCalled ? `已基于 ${result.retrieved} 篇日记回答。` : "本地检索没有找到足够证据，未调用模型。")
+        setMessage((result.retrieval?.fallback || "") + (result.providerCalled ? `已基于 ${result.retrieved} 篇日记回答。` : "本地检索没有找到足够证据，未调用模型。"))
       } else {
         const prepared = await request<Plan>("/library/ai/prepare", {
-          mode, question, beginDate, endDate, diaryType, provider, lens,
+          mode, question, beginDate, endDate, diaryType, provider, lens, retrievalMode,
           ...(mode === "selected" ? { sourceIds: selectedIds } : {}), disclosureAccepted: true,
         }, session)
         setPlan(prepared)
+        if (prepared.retrieval?.fallback) setMessage(prepared.retrieval.fallback)
         if (!prepared.large) setPlan(await request<Plan>("/library/ai/start", { id: prepared.id }, session))
       }
     } catch (cause) { setError(cause instanceof Error ? cause.message : "AI 日记处理失败。") }
@@ -111,9 +116,14 @@ export function AIAssistantPage({ session, selectedIds, onSettings, onArchive }:
   }
   return <main className="mx-auto max-w-5xl space-y-6 p-8">
     <h1 className="text-3xl font-semibold">AI 日记助手</h1>
+    <section aria-label="AI 实验状态" className="space-y-2 rounded-xl border bg-muted/30 p-4">
+      <h2 className="font-medium">🚧 AI 日记助手仍在建设中</h2>
+      <p className="text-sm text-muted-foreground">当前功能仍处于实验阶段，尚未完成完整的人工测试，部分模型或功能可能无法正常使用。日记归档、搜索、OCR 与导出等基础功能不受影响。</p>
+    </section>
     <p className="text-sm text-muted-foreground">从本地日记中检索、回顾与整理，回答附有可打开的来源。</p>
     <nav aria-label="AI 模式" className="flex flex-wrap gap-2">{modes.map(([value, name]) =>
       <Button key={value} disabled={busy} variant={mode === value ? "secondary" : "ghost"} onClick={() => changeMode(value)}>{name}</Button>)}</nav>
+    {(mode === "ask" || mode === "timeline") && <RetrievalControl mode={retrievalMode} session={session} disabled={busy || plan?.state === "running"} onChange={(value) => { setRetrievalMode(value); setTurns([]); setPlan(null) }} />}
     {!providers.length ? <section className="rounded-xl border p-6"><p>尚未配置 AI 服务商。请先在设置中保存 API Key 与模型。</p>
       <Button className="mt-4" onClick={onSettings}>前往设置 → AI API 设置</Button></section> : <>
       <section className="grid gap-4 rounded-xl border p-5 md:grid-cols-4">

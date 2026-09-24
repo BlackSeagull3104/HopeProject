@@ -1,4 +1,4 @@
-param([switch]$BackendOnly)
+param([switch]$BackendOnly, [string]$SemanticModel)
 $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
 $python = Join-Path $root '.venv\Scripts\python.exe'
@@ -19,6 +19,10 @@ try {
     if ($LASTEXITCODE -ne 0) { throw 'Backend build failed' }
     & $python -B -X utf8 scripts/smoke_backend.py dist/backend/hope-archive-backend.exe
     if ($LASTEXITCODE -ne 0) { throw 'Frozen backend smoke test failed' }
+    if ($SemanticModel) {
+        & $python -B -X utf8 scripts/smoke_hybrid.py dist/backend/hope-archive-backend.exe --model $SemanticModel
+        if ($LASTEXITCODE -ne 0) { throw 'Frozen Hybrid smoke test failed' }
+    }
     $sidecars = Join-Path $root 'frontend\vite-app\src-tauri\binaries'
     New-Item -ItemType Directory -Force $sidecars | Out-Null
     # This first prototype explicitly targets Windows x64 / Python x64.
@@ -42,7 +46,8 @@ try {
     $installer = "frontend/vite-app/src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/Hope Archive_${version}_x64-setup.exe"
     if (-not (Test-Path -LiteralPath $installer)) { throw 'Installer missing' }
     New-Item -ItemType Directory -Force dist/releases | Out-Null
-    $release = "dist/releases/HopeArchive-${version}-ai-v3-dev-Setup.exe"
+    $release = "dist/releases/HopeArchive-${version}-Setup.exe"
+    if (Test-Path -LiteralPath $release) { throw 'Refusing to overwrite an existing QA installer. Move it aside explicitly or choose a new version.' }
     Copy-Item -LiteralPath $installer -Destination $release
     Write-Output "Installer: $release"
     Write-Output "Portable application: $portable"

@@ -41,7 +41,7 @@ def run_capsules(service, token, identity, user):
 
 def dispatch(service, method, path, body, token):
     from .local_api import RequestError, fields
-    from . import search, ai, ai_assistant, ai_workflows
+    from . import search, ai, ai_assistant, ai_workflows, semantic
     with service.lock:
         if not hasattr(service, 'preferences'):
             service.preferences = Settings(getattr(service, 'home', None))
@@ -73,6 +73,21 @@ def dispatch(service, method, path, body, token):
             return export_pages(body['pages'], service.preferences.destination('ocr'), body['format'])
         user = service.session(token) if token else None
         user_id = user['userId'] if user else None
+        if path.startswith(('/library/semantic/', '/library/search/', '/library/ai/')):
+            with service.lock:
+                if not hasattr(service, 'semantic_service'):
+                    service.semantic_service = semantic.SemanticService(service.pool, service.preferences.home / 'semantic')
+            root = service.library.account_root(user_id) if user_id else service.library.root
+            local_index = search.SearchIndex(root, service.search_cache)
+        if path.startswith('/library/semantic/'):
+            fields(body, [], ['confirmed'] if path.endswith('/install') else [])
+            if path.endswith('/status'): return service.semantic_service.status(local_index)
+            if path.endswith('/install'):
+                if body.get('confirmed') is not True: raise ValueError('请先确认下载本地语义组件。')
+                return service.semantic_service.start(local_index, download=True)
+            if path.endswith('/index'): return service.semantic_service.start(local_index)
+            if path.endswith('/rebuild'): return service.semantic_service.start(local_index, rebuild=True)
+            raise RequestError(404, '接口不存在。')
         if path == '/library/preview':
             return service.dispatch('POST','/diaries/preview',body,token)
         if path == '/library/media':
@@ -85,6 +100,9 @@ def dispatch(service, method, path, body, token):
                     service.ai_workflows = ai_workflows.WorkflowManager(service.pool)
             root = service.library.account_root(user_id) if user_id else service.library.root
             index = search.SearchIndex(root, service.search_cache)
+            body = dict(body)
+            retrieval_mode = body.pop('retrievalMode', 'FTS5') if path.endswith(('/ask', '/prepare')) else 'FTS5'
+            index = semantic.RetrievalIndex(index, service.semantic_service, retrieval_mode)
             assistant = ai_assistant.DiaryAssistant(index, service.ai_settings)
             manager = service.ai_workflows
             owner = token or 'offline'
@@ -92,9 +110,11 @@ def dispatch(service, method, path, body, token):
                 fields(body, [])
                 return assistant.status()
             if path == '/library/ai/ask':
-                return assistant.ask(body)
+                result = assistant.ask(body)
+                return dict(result, retrieval=index.retrieval)
             if path == '/library/ai/prepare':
-                return manager.prepare(owner, index, service.ai_settings, body)
+                result = manager.prepare(owner, index, service.ai_settings, body)
+                return dict(result, retrieval=index.retrieval)
             if path in ('/library/ai/start', '/library/ai/progress', '/library/ai/cancel', '/library/ai/export'):
                 fields(body, ['id'], ['confirmLarge'] if path.endswith('/start') else [])
                 if path.endswith('/start'):
@@ -112,7 +132,15 @@ def dispatch(service, method, path, body, token):
             if path.endswith('/detail'):
                 fields(body, ['id'])
                 return index.detail(body['id'])
-            fields(body, ['query'], ['beginDate','endDate','diaryType','contentType','offset','related'])
+            fields(body, ['query'], ['beginDate','endDate','diaryType','contentType','offset','related','retrievalMode'])
+            if 'retrievalMode' in body:
+                mode = body['retrievalMode']
+                wrapped = semantic.RetrievalIndex(index, service.semantic_service, mode)
+                if body.get('contentType') == 'diary':
+                    return wrapped.related_query(body['query'], ai_assistant.query_terms(body['query']),
+                        body.get('beginDate',''), body.get('endDate',''), body.get('diaryType','all'), body.get('offset',0))
+                result = index.query(body['query'], body.get('beginDate',''), body.get('endDate',''), body.get('diaryType','all'), body.get('contentType','all'), body.get('offset',0))
+                return dict(result, retrieval={'mode':'FTS5','fallback':'Hybrid 仅用于日记；本次已使用 FTS5。' if mode == 'Hybrid' else ''})
             if type(body.get('related', False)) is not bool: raise ValueError('检索选项无效。')
             if body.get('related'):
                 if body.get('contentType') != 'diary': raise ValueError('相关词检索仅支持日记。')
