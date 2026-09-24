@@ -3,6 +3,7 @@ import { request, type Session, type Job } from "@/lib/api"
 import { EXPORT_FORMATS, todayString, type ExportFormat } from "@/lib/export"
 import { DIARY_TYPES } from "@/lib/diary"
 import { Button } from "@/components/ui/button"
+import { ArchiveFolderButton } from "@/ArchiveFolderButton"
 
 export const inputClass = "min-w-0 rounded-lg border bg-background p-3 text-sm"
 export function FormatPicker({
@@ -46,6 +47,7 @@ export function ArchivePage({
   const [message, setMessage] = useState("")
   const [error, setError] = useState("")
   const [jobId, setJobId] = useState("")
+  const [completed, setCompleted] = useState(false)
   useEffect(() => {
     if (!jobId || !session) return
     let active = true
@@ -60,6 +62,7 @@ export function ArchivePage({
           setBusy(false)
           setJobId("")
           if (job.state === "failed") setError(job.stage)
+          setCompleted(job.state === "completed" || job.state === "partial")
         }
       } catch (cause) {
         if (active) {
@@ -78,6 +81,7 @@ export function ArchivePage({
   async function run() {
     if (!session) { onLogin(); return }
     setBusy(true); setError(""); setMessage("")
+    setCompleted(false)
     try {
       const job = await request<{ jobId: string }>("/library/archive", { beginDate, endDate, diaryType, formats }, session)
       setJobId(job.jobId)
@@ -143,6 +147,7 @@ export function ArchivePage({
         {message}
       </p>
       {error && <p role="alert">{error}</p>}
+      {completed && <ArchiveFolderButton />}
     </main>
   )
 }
@@ -337,6 +342,7 @@ export function OCRPage() {
         <section className="grid gap-4">
           <FormatPicker value={format} onChange={setFormat} />
           <p>保存到「设置 → 归档目录」下的 archive/ocr 文件夹。</p>
+          <ArchiveFolderButton area="ocr" />
           <Button
             disabled={busy || !pages.some((p) => p.text.trim())}
             onClick={async () => {

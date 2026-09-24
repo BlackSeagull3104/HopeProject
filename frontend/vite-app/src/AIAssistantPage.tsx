@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react"
+import { ArchiveFolderButton } from "@/ArchiveFolderButton"
 import { request, type Session } from "@/lib/api"
 import { DIARY_TYPES } from "@/lib/diary"
 import { presetRange, type AIMode, type DatePreset } from "@/lib/ai"
@@ -169,7 +170,7 @@ export function AIAssistantPage({ session, selectedIds, onSettings, onArchive }:
       </form>
       <p className="text-xs text-muted-foreground">当前模型：{chosen?.label} / {chosen?.model}。问日记最多选择 8 个相关片段；回顾与时间线会在本机分组后逐组处理。 <button className="underline" onClick={() => setShowDisclosure(true)}>查看隐私说明</button></p>
     </>}
-    {message && <p>{message}</p>}{error && <p role="alert" className="text-destructive">{error}</p>}
+    {message && <><p>{message}</p><ArchiveFolderButton area="ai" /></>}{error && <p role="alert" className="text-destructive">{error}</p>}
     {detail && <section className="rounded-xl border p-6"><h2 className="text-xl font-semibold">来源详情 · {detail.date} · {label(detail.diaryType)}</h2><p className="mt-4 whitespace-pre-wrap break-words">{detail.body}</p></section>}
     <Button variant="ghost" onClick={onArchive}>前往日记归档</Button>
     {showDisclosure && <section role="dialog" aria-modal="true" aria-label="AI 隐私说明" className="fixed inset-0 z-50 grid place-items-center bg-background/95 p-8"><div className="max-w-lg space-y-5 rounded-2xl border bg-card p-8"><h2 className="text-2xl font-semibold">发送前请确认</h2>

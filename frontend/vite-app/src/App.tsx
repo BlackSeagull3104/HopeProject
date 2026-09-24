@@ -7,6 +7,7 @@ import { SearchPage } from "@/SearchPage"
 import { AISettingsPage } from "@/AISettingsPage"
 import { AIAssistantPage } from "@/AIAssistantPage"
 import { ArchivePage, OCRPage, FormatPicker, inputClass } from "@/ProductPages"
+import { ArchiveFolderButton } from "@/ArchiveFolderButton"
 
 const navigation = [
   ["preview", "日记预览"],
@@ -242,7 +243,8 @@ function OpenedCapsules({
       {!!items.length && (
         <section className="grid gap-3">
           <FormatPicker value={format} onChange={setFormat} />
-          <p>保存到归档目录下的 capsules 文件夹。</p>
+          <p>保存到所选目录下的 archive/capsules 文件夹。</p>
+          <ArchiveFolderButton area="capsules" />
           <Button
             disabled={busy}
             onClick={async () => {
@@ -364,6 +366,12 @@ export function App() {
             {error}
           </p>
         )}
+        <details className="mx-8 mt-4 rounded-lg border p-3 text-sm">
+          <summary className="cursor-pointer">初次使用？了解预览、归档和本地搜索</summary>
+          <p className="mt-3">日记预览直接浏览 Hope 云端内容，无需先归档。日记归档将记录保存到你选择的本地目录。</p>
+          <p>archive 是供你阅读、整理和保存的文档；backup 是恢复及重新生成文档所需的应用数据，不必日常打开 JSON。</p>
+          <p>FTS5 是本机关键词搜索；Hybrid 加入可选的本地语义组件。OCR 在本机识图；AI 回答另需你自己的服务商密钥，发送内容前会提示。</p>
+        </details>
         {page === "preview" && (
           <DiaryPreview
             key={session?.token || "offline"}
@@ -414,6 +422,7 @@ export function App() {
               <Button onClick={() => void chooseDirectory()}>
                 选择 / 更改归档目录
               </Button>
+              {preferences.exportConfigured && <ArchiveFolderButton />}
               <p>
                 Hope Archive 会自动管理 backup 中的备份数据与 archive 中的可阅读文档。
               </p>

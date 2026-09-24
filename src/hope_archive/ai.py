@@ -125,12 +125,17 @@ class OpenAICompatibleProvider(AIProvider):
             system = '\n\n'.join(m['content'] for m in messages if m['role'] == 'system')
             result = self._request('/messages', {'model': self.config['model'], 'max_tokens': 1024,
                 'messages': [m for m in messages if m['role'] != 'system'], **({'system': system} if system else {})})
-            try: return '\n'.join(b['text'] for b in result['content'] if b.get('type') == 'text')
-            except (KeyError, TypeError): raise AIError('模型未返回有效文本。') from None
+            try:
+                blocks = result['content']
+                if not isinstance(blocks, list): raise ValueError()
+                value = '\n'.join(b['text'] for b in blocks if isinstance(b, dict) and b.get('type') == 'text')
+                if not value.strip(): raise ValueError()
+                return value
+            except (KeyError, TypeError, ValueError): raise AIError('模型未返回有效文本。') from None
         result = self._request('/chat/completions', {'model': self.config['model'], 'messages': messages, 'stream': False})
         try:
             value = result['choices'][0]['message']['content']
-            if not isinstance(value, str): raise ValueError()
+            if not isinstance(value, str) or not value.strip(): raise ValueError()
             return value
         except (KeyError, IndexError, TypeError, ValueError): raise AIError('模型未返回有效文本。') from None
 

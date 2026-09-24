@@ -53,6 +53,9 @@ def dispatch(service, method, path, body, token):
         if path == '/settings/read':
             fields(body, [])
             return dict(service.preferences.read(),migrationWarning=getattr(service,'migration_warning',''))
+        if path == '/settings/open-archive':
+            fields(body, ['area'])
+            return service.preferences.open_archive(body['area'])
         if path == '/settings/save':
             fields(body, ['exportRoot'])
             with service.lock:

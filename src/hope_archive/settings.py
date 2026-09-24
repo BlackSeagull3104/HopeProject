@@ -63,3 +63,24 @@ class Settings:
         if not readme.exists():
             readme.write_text('此文件夹包含 Hope Archive 的原始备份数据和媒体文件，用于恢复及重新生成归档文档。除非明确知道用途，否则不建议手动修改或删除。\n',encoding='utf-8')
         return root
+
+    def open_archive(self, area):
+        """Open only a configured output directory, never a caller-supplied path."""
+        if area not in ('diaries', 'capsules', 'ocr', 'ai'):
+            raise ValueError('无效导出类型。')
+        current = self.read()
+        if not current['exportConfigured']:
+            raise ValueError('请先设置归档目录。')
+        root = Path(current['exportRoot']).resolve()
+        target = root / 'archive'
+        if area in ('capsules', 'ocr'): target /= area
+        if area == 'ai': target /= 'AI回顾'
+        target = target.resolve()
+        if not target.is_relative_to(root) or target == root:
+            raise ValueError('归档目录不能指向所选根目录之外。')
+        if not target.is_dir():
+            raise ValueError('尚未生成此类归档文件。')
+        if os.name != 'nt':
+            raise ValueError('打开文件夹仅支持 Windows 桌面。')
+        os.startfile(str(target), 'explore')
+        return {'opened': True}

@@ -21,6 +21,8 @@ function ProviderForm({ preset }: { preset: Preset }) {
   const [baseUrl, setBase] = useState(preset.baseUrl)
   const [key, setKey] = useState("")
   const [configured, setConfigured] = useState(false)
+  const [editingKey, setEditingKey] = useState(false)
+  const [confirmDelete, setConfirmDelete] = useState(false)
   const [busy, setBusy] = useState(true)
   const [message, setMessage] = useState("")
   const [error, setError] = useState("")
@@ -66,6 +68,8 @@ function ProviderForm({ preset }: { preset: Preset }) {
       )
       if (action !== "test") {
         setConfigured(result.configured)
+        setEditingKey(false)
+        setConfirmDelete(false)
         if (action === "delete") {
           setModel(result.model)
           setCustom(!preset.models.includes(result.model))
@@ -141,7 +145,8 @@ function ProviderForm({ preset }: { preset: Preset }) {
         <p className="text-xs text-muted-foreground">
           配置密钥后可刷新账户可用模型。预设不代表账户已开通；所有服务商均可填写自定义模型 ID。
         </p>
-        <label className="grid gap-2 text-sm">
+        {configured && !editingKey && <Button variant="outline" onClick={() => setEditingKey(true)}>替换 API Key</Button>}
+        {(!configured || editingKey) && <label className="grid gap-2 text-sm">
           API Key
           <input
             type="password"
@@ -149,12 +154,13 @@ function ProviderForm({ preset }: { preset: Preset }) {
             spellCheck={false}
             className={input}
             placeholder={
-              configured ? "留空保留；输入新值可替换" : "输入你自己的 API Key"
+              "输入你自己的 API Key"
             }
             value={key}
             onChange={(e) => setKey(e.target.value)}
           />
-        </label>
+        </label>}
+        {editingKey && <Button variant="ghost" onClick={() => { setKey(""); setEditingKey(false) }}>取消替换</Button>}
         <div className="flex flex-wrap gap-3">
           <Button
             variant="outline"
@@ -191,15 +197,20 @@ function ProviderForm({ preset }: { preset: Preset }) {
           >
             测试连接
           </Button>
-          <Button onClick={() => void act("save")}>保存</Button>
+          <Button disabled={(!configured || editingKey) && !key.trim()} onClick={() => void act("save")}>保存</Button>
           <Button
             variant="outline"
             disabled={!configured}
-            onClick={() => void act("delete")}
+            onClick={() => setConfirmDelete(true)}
           >
             删除 API Key
           </Button>
         </div>
+        {confirmDelete && <section aria-label="确认删除密钥" className="space-y-3">
+          <p>删除后此服务商将无法生成回答，其他服务商不受影响。</p>
+          <Button onClick={() => void act("delete")}>确认删除 API Key</Button>
+          <Button variant="ghost" onClick={() => setConfirmDelete(false)}>取消删除</Button>
+        </section>}
       </fieldset>
       <p className="text-xs text-muted-foreground">
         {preset.discovery === false &&

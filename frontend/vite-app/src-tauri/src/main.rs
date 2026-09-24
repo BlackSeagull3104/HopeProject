@@ -180,6 +180,7 @@ async fn desktop_request(
                 | "/ai/models"
                 | "/settings/read"
                 | "/settings/save"
+                | "/settings/open-archive"
                 | "/library/preview"
                 | "/library/media"
                 | "/library/download"
