@@ -120,7 +120,8 @@ def run(service, identity, body, user_id, library, output):
             version.mkdir(parents=True)
             raw = Path(temporary)/'raw'
             if raw.exists(): shutil.copytree(raw, version/'responses')
-            atomic_json(version/'diaries.json', entries)
+            from .privacy import DIARY, project
+            atomic_json(version/'diaries.json', project(entries, [DIARY]))
         normalized = account/'normalized/diaries.normalized.json'
         previous = list(library.diaries(user_id))
         merged = {(normalized_type(e), str(e['id'])): e for e,a in reversed(previous)}

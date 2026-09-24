@@ -42,7 +42,7 @@ type=2 文件 URL 全部以 .jpeg 结尾（97 个）；type=3 对应一个 .mp4 
 
 不复制账户手机号、设备 token、wxOpenId、生日、余额、会员状态等。也不复制头像、装饰、任务/匹配状态、viewer 的 liked 状态。
 采用 allowlist 而非删除几个敏感字段后的整体复制，避免新增后台账户字段自动进入 normalized output。
-未知 source fields 仍在 raw 和原 diaries.json；normalized output 不是原备份的可逆替代品。
+Alpha.2 起未知 source fields 不再写入新的 raw 和 diaries.json；旧备份不自动重写。normalized output 不是完整 API 响应的可逆替代品，详见 [隐私策略](PRIVACY_DATA.md)。
 未知 block type 仍保留 type、text 和文件引用，未建模的额外字段留在原备份。
 
 ## Missing values 与职责
@@ -79,5 +79,5 @@ type=2 文件 URL 全部以 .jpeg 结尾（97 个）；type=3 对应一个 .mp4 
 
 dict/list 表达字段与顺序；list comprehension 是逐项映射，不是筛选或去重。
 pure function 将业务转换与 I/O 分离，方便用小型 fixture 精确测试。
-allowlist 控制模型边界，raw backup 保留完整证据。schema version 为以后演进留简单标记。
+allowlist 控制模型边界；Alpha.2 的 raw backup 同样使用源格式白名单，不保留完整 HTTP 证据。schema version 为以后演进留简单标记。
 同样输入产生同样输出叫 deterministic transformation；保真验证应比较字段值和顺序，而不只比较条数。

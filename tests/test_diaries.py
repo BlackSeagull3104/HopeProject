@@ -28,12 +28,14 @@ class DiaryTests(unittest.TestCase):
                                  data_dir=self.root, **kwargs)
 
     @patch("hope_archive.api.urlopen")
-    def test_multiple_short_pages_and_exact_raw_bytes(self, post):
-        first = body(3, [{"text": "测试 🌱"}])
-        post.side_effect = [io.BytesIO(first), io.BytesIO(body(3, [{"text": "b"}, {"text": "c"}]))]
+    def test_multiple_short_pages_and_minimized_recovery(self, post):
+        first = body(3, [{"dairyId": 1, "dairy": "测试 🌱", "mobile": "PRIVATE"}])
+        post.side_effect = [io.BytesIO(first), io.BytesIO(body(3, [{"dairyId": 2, "dairy": "b"}, {"dairyId": 3, "dairy": "c"}]))]
         result = self.fetch(page_size=20, timeout=7)
         self.assertEqual(len(result), 3)
-        self.assertEqual((self.root / "raw/diaries/page_0001.json").read_bytes(), first)
+        saved = json.loads((self.root / "raw/diaries/page_0001.json").read_bytes())
+        self.assertEqual(saved['datas']['list'], [{'dairyId': 1, 'dairy': '测试 🌱'}])
+        self.assertNotIn('PRIVATE', json.dumps(saved))
         self.assertEqual(json.loads((self.root / "processed/diaries.json").read_bytes()), result)
         for number, call in enumerate(post.call_args_list, 1):
             request = call.args[0]
@@ -82,18 +84,18 @@ class DiaryTests(unittest.TestCase):
         self.assertEqual(post.call_count, 1)
 
     @patch("hope_archive.api.urlopen")
-    def test_invalid_json_saved_before_parse(self, post):
+    def test_invalid_json_body_not_persisted(self, post):
         post.return_value = io.BytesIO(b"not JSON")
         with self.assertRaisesRegex(DiaryAPIError, "invalid JSON"):
             self.fetch()
-        self.assertEqual((self.root / "raw/diaries/page_0001.json").read_bytes(), b"not JSON")
+        self.assertEqual(json.loads((self.root / "raw/diaries/page_0001.json").read_bytes())['response'], 'invalid-or-unrecognized')
 
     @patch("hope_archive.api.urlopen")
-    def test_http_error_body_saved(self, post):
+    def test_http_error_body_not_persisted(self, post):
         post.side_effect = HTTPError("https://example.invalid", 503, "Unavailable", {}, io.BytesIO(b"error"))
         with self.assertRaisesRegex(DiaryAPIError, "HTTP 503"):
             self.fetch()
-        self.assertEqual((self.root / "raw/diaries/page_0001.json").read_bytes(), b"error")
+        self.assertEqual(json.loads((self.root / "raw/diaries/page_0001.json").read_bytes())['response'], 'invalid-or-unrecognized')
 
     @patch("hope_archive.api.urlopen")
     def test_network_errors(self, post):

@@ -5,7 +5,6 @@ import json
 from pathlib import Path
 import re
 import tempfile
-import traceback
 
 from .api import fetch_all_diaries
 from .normalization import normalize_diaries
@@ -111,7 +110,7 @@ def export_archive(user_id, begin_date, end_date, note_type, output_dir, *, on_p
     except Exception as exc:
         # Keep diagnostics local; UI receives a short stage-specific message only.
         try:
-            (run_dir / 'error.log').write_text(traceback.format_exc(), encoding='utf-8')
+            (run_dir / 'error.log').write_text(stage + ': operation failed\n', encoding='utf-8')
         except OSError:
             pass
         messages = {'获取日记': '获取日记失败，请检查网络、User ID 或服务返回状态。',

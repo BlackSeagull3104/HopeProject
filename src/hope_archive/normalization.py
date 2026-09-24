@@ -2,6 +2,7 @@
 
 from copy import deepcopy
 from .diary_types import entry_type
+from .privacy import DIARY, project
 
 
 def object_or_empty(value):
@@ -71,6 +72,7 @@ def normalize_comments(value):
 def normalize_diary(entry):
     if not isinstance(entry, dict):
         raise ValueError("Each diary must be an object")
+    entry = project(entry, DIARY)
     diary_id = entry.get("dairyId")
     # A missing identity must not silently become an invented stable identity.
     if type(diary_id) not in (str, int) or diary_id == "":

@@ -37,13 +37,13 @@ def request_data(endpoint, params, raw_path):
             raw = response.read()
     except (HTTPError, URLError, OSError):
         raise CapsuleError('时间胶囊请求失败，请稍后重试。') from None
-    save_raw_response(raw_path, raw)
+    save_raw_response(raw_path, raw, kind='capsule')
     try:
         payload = json.loads(raw)
     except (ValueError, UnicodeError):
-        raise CapsuleError('时间胶囊响应格式无效，原始数据已保留。') from None
+        raise CapsuleError('时间胶囊响应格式无效，未保留响应正文。') from None
     if not isinstance(payload, dict) or type(payload.get('status')) is not int or payload['status'] != 1:
-        raise CapsuleError('时间胶囊服务未返回成功状态，原始数据已保留。')
+        raise CapsuleError('时间胶囊服务未返回成功状态，未保留响应正文。')
     return payload.get('datas')
 
 

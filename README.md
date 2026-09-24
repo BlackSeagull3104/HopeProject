@@ -99,7 +99,7 @@ CLI 和 UI 使用同一个流程：
 ```text
 main.py / ui.py
   → application.export_archive()
-    → api.fetch_all_diaries() → storage：raw bytes + merged list
+    → api.fetch_all_diaries() → storage：最小化源格式备份 + merged list
     → normalization.normalize_diaries() → normalized document
     → media.localize() → 本地媒体和 manifest
     → export_markdown.export_diaries() → Markdown
@@ -119,7 +119,7 @@ hope-archive-.../
 
 `processed/diaries.json` 是 backend entries 的 list；`diaries.normalized.json` 才是包含 `schema_version`、`source`、`diaries` 的 document。不要把前者直接传给 media 或 Markdown CLI。
 
-API 的 POST 范围固定为 `type=mine`。每页 raw response 在 JSON 解析前保存，HTTP error body 也保留。pagination 从第 1 页开始，只有 combined count 等于 `datas.total` 才发布 merged output；空页、重复页、total 变化等会报错。core 未改动，不提供服务器快照或跨页部分重叠去重保证。
+API 的 POST 范围固定为 `type=mine`。从 Alpha.2 开始，新备份按字段白名单保存源格式数据，不保存完整响应或 HTTP 错误正文；作者正文和评论不按号码模式删改。旧备份不自动重写。详见[本地备份与隐私](docs/PRIVACY_DATA.md)。pagination 从第 1 页开始，只有 combined count 等于 `datas.total` 才发布 merged output；空页、重复页、total 变化等会报错，不提供服务器快照或跨页部分重叠去重保证。
 
 CLI 完整成功退出码为 0；阶段失败或媒体/Markdown 部分失败为 1；参数解析失败为 2。阶段异常时保留已有文件，并尽量在本次目录写入 `error.log`。无自动重试或断点续传；重复运行产生独立归档，不是 incremental sync。
 

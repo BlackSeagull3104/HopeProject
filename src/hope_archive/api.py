@@ -19,7 +19,7 @@ class DiaryAPIError(Exception):
 def fetch_diary_page(user_id: str, begin_date: str, end_date: str, *,
                      page_num: int = 1, page_size: int = 20, note_type: int = 0,
                      timeout: float = 30, raw_dir: Path = Path("data/raw/diaries")):
-    """POST one page, preserve its body before parsing, then return JSON.
+    """POST one page, persist minimized recovery data, then return source JSON.
 
     No authentication or account verification is performed. The caller supplies
     their own backend user ID. There is intentionally no configurable `type`.
@@ -44,11 +44,11 @@ def fetch_diary_page(user_id: str, begin_date: str, end_date: str, *,
         with urlopen(request, timeout=timeout) as response:
             body = response.read()
     except HTTPError as exc:
-        # HTTP error bodies are evidence too, even when they contain HTML.
+        # Do not retain error bodies: they may contain credentials/profile data.
         with exc:
             if path is not None:
-                save_raw_response(path, exc.read())
-        raise DiaryAPIError(f"Page {page_num}: HTTP {exc.code}; raw body saved to {path}") from exc
+                save_raw_response(path, b'')
+        raise DiaryAPIError(f"Page {page_num}: HTTP {exc.code}") from None
     except (URLError, TimeoutError, OSError) as exc:
         raise DiaryAPIError(f"Page {page_num}: network request failed or timed out") from exc
     if path is not None:
@@ -56,7 +56,7 @@ def fetch_diary_page(user_id: str, begin_date: str, end_date: str, *,
     try:
         return json.loads(body)
     except (ValueError, UnicodeError) as exc:
-        raise DiaryAPIError(f"Page {page_num}: invalid JSON; raw body saved to {path}") from exc
+        raise DiaryAPIError(f"Page {page_num}: invalid JSON; response body not retained") from None
 
 
 def fetch_all_diaries(user_id: str, begin_date: str, end_date: str, *,
@@ -94,6 +94,8 @@ def fetch_all_diaries(user_id: str, begin_date: str, end_date: str, *,
         if len(entries) > expected_total:
             raise DiaryAPIError("Received more entries than datas.total")
         if len(entries) == expected_total:
+            from .privacy import DIARY, project
+            entries = project(entries, [DIARY])
             if data_dir is not None:
                 save_diaries(Path(data_dir) / "processed/diaries.json", entries)
             return entries
