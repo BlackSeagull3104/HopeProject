@@ -55,3 +55,10 @@ Manual acceptance remains pending:
 4. Test connection intentionally, replace/delete the key, and check the other providers remain unchanged.
 
 Do not paste API keys into chat or commit private indexes. No GitHub Release is created by this milestone.
+
+## Later development: optional local Hybrid
+
+The `0.2.0-alpha.1` candidate extends diary retrieval with exactly FTS5 and Hybrid
+modes, explicit model download, persisted derived semantic indexes and visible
+FTS fallback. This historical milestone's earlier limitations are not a description
+of every later feature. See [Hybrid architecture, privacy and measurements](HYBRID_RETRIEVAL.md).
