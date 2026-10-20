@@ -12,7 +12,7 @@ test("exactly two public retrieval modes and complete lifecycle", () => {
 const control = await readFile(new URL("../src/RetrievalControl.tsx", import.meta.url), "utf8")
 const assistant = await readFile(new URL("../src/AIAssistantPage.tsx", import.meta.url), "utf8")
 test("component download is explicit, disclosed and not triggered by mounting", () => {
-  assert.match(control, /onClick=\{\(\) => void action\("install"\)\}/)
+  assert.match(control, /onClick=\{\(\) => void runtime.ensure\(\(\) => void action\("install"\)\)\}/)
   assert.match(control, /confirmed: true/)
   assert.match(control, /129.16 MiB/)
   assert.match(control, /不会上传/)

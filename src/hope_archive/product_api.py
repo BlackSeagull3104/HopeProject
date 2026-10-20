@@ -46,10 +46,18 @@ def dispatch(service, method, path, body, token):
         if not hasattr(service, 'preferences'):
             service.preferences = Settings(getattr(service, 'home', None))
             service.library = Library(service.preferences.home)
-            service.ocr_jobs = OCRJobs()
+            service.ocr_jobs = OCRJobs(service.preferences.home)
+            from .optional_runtime import RuntimeComponent
+            service.runtime_component = RuntimeComponent(service.preferences.home)
             configure_library(service)
     if method != 'POST' or not isinstance(body, dict): raise RequestError(400, '请求格式无效。')
     try:
+        if path.startswith('/components/runtime/'):
+            fields(body, [], ['confirmed'] if path.endswith('/install') else [])
+            if path.endswith('/status'): return service.runtime_component.status()
+            if path.endswith('/install'): return service.runtime_component.start(body.get('confirmed'))
+            if path.endswith('/cancel'): return service.runtime_component.cancel()
+            raise ValueError('不支持的组件操作。')
         if path == '/settings/read':
             fields(body, [])
             return dict(service.preferences.read(),migrationWarning=getattr(service,'migration_warning',''))
@@ -67,6 +75,8 @@ def dispatch(service, method, path, body, token):
                 return dict(result,migration=migration,migrationWarning=getattr(service,'migration_warning',''))
         if path == '/ocr/start':
             if set(body) != {'images'}: raise ValueError('图片请求格式无效。')
+            import sys
+            if getattr(sys, 'frozen', False): service.runtime_component.command()
             return service.ocr_jobs.start(body['images'])
         if path in ('/ocr/status', '/ocr/cancel'):
             fields(body, ['jobId'])
@@ -85,8 +95,11 @@ def dispatch(service, method, path, body, token):
         if path.startswith('/library/semantic/'):
             fields(body, [], ['confirmed'] if path.endswith('/install') else [])
             if path.endswith('/status'): return service.semantic_service.status(local_index)
+            if path.endswith('/cancel'): return service.semantic_service.cancel(local_index)
             if path.endswith('/install'):
                 if body.get('confirmed') is not True: raise ValueError('请先确认下载本地语义组件。')
+                import sys
+                if getattr(sys, 'frozen', False): service.runtime_component.command()
                 return service.semantic_service.start(local_index, download=True)
             if path.endswith('/index'): return service.semantic_service.start(local_index)
             if path.endswith('/rebuild'): return service.semantic_service.start(local_index, rebuild=True)

@@ -60,6 +60,19 @@ class SemanticTests(unittest.TestCase):
         self.assertEqual(len(result), 1)
         self.assertEqual(self.service.status(self.index)['state'], 'not_installed')
 
+    def test_cancel_model_install_preserves_keyword_search(self):
+        def download(home, progress, cancelled):
+            progress('downloading')
+            self.service.cancel(self.index)
+            self.assertTrue(cancelled())
+            raise TimeoutError('Cancelled')
+        with patch.object(model, 'install', side_effect=download), \
+             patch.object(self.service, 'encoder', side_effect=AssertionError('No inference')):
+            self.service.install_state = 'downloading'
+            self.service.run(self.index, True, False)
+        self.assertEqual(self.service.status(self.index)['state'], 'not_installed')
+        self.assertTrue(RetrievalIndex(self.index, self.service, 'FTS5').retrieve('nanoGPT', ['nanoGPT']))
+
     def test_missing_component_visible_fallback(self):
         wrapped = RetrievalIndex(self.index, self.service, 'Hybrid')
         self.assertTrue(wrapped.retrieve('nanoGPT', ['nanoGPT']))

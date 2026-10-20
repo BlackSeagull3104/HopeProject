@@ -66,6 +66,8 @@ def main():
             if command.strip() == 'shutdown':
                 break
     finally:
+        if hasattr(server.service, 'runtime_component'):
+            server.service.runtime_component.close()
         if hasattr(server.service, 'semantic_service'):
             server.service.semantic_service.close()
         if hasattr(server.service, 'ocr_jobs'):

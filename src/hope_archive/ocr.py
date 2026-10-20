@@ -9,15 +9,14 @@ import threading
 import time
 
 
-def worker_command():
-    if getattr(sys, 'frozen', False):
-        return [str(Path(sys.executable).parent / 'ocr-runtime' / 'hope-archive-ocr.exe')]
-    # Bypass Windows venv's launcher so cancellation targets the actual worker.
-    return [getattr(sys, '_base_executable', sys.executable), '-B', '-X', 'utf8', '-m', 'hope_archive.ocr_worker']
+def worker_command(home=None):
+    from .optional_runtime import worker_command as command
+    return command(home=home)
 
 
 class OCRJobs:
-    def __init__(self):
+    def __init__(self, home=None):
+        self.home = home
         self.lock = threading.RLock()
         self.jobs = {}
 
@@ -50,7 +49,7 @@ class OCRJobs:
                 env = dict(os.environ, PYTHONIOENCODING='utf-8')
                 if not getattr(sys, 'frozen', False):
                     env['PYTHONPATH'] = os.pathsep.join([str(Path(__file__).resolve().parents[1]), *[p for p in sys.path if p]])
-                process = subprocess.Popen(worker_command(), stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+                process = subprocess.Popen(worker_command(self.home), stdin=subprocess.PIPE, stdout=subprocess.PIPE,
                     stderr=subprocess.DEVNULL, env=env, creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0))
                 job['process'] = process
             started = time.perf_counter()
@@ -63,7 +62,7 @@ class OCRJobs:
                     job.update(state='completed', result=result, elapsedSeconds=time.perf_counter()-started)
         except Exception:
             with self.lock:
-                job.update(state='failed', error='识别失败，请检查图片或重新安装完整应用。')
+                job.update(state='failed', error='识别失败，请检查图片或本地识别组件。')
         finally:
             if process is not None:
                 if process.poll() is None: process.kill()

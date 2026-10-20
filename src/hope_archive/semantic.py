@@ -50,10 +50,8 @@ def vector(values):
 
 class Worker:
     def __init__(self, directory):
-        if getattr(sys, 'frozen', False):
-            command = [str(Path(sys.executable).parent / 'ocr-runtime' / 'hope-archive-ocr.exe'), '--semantic']
-        else:
-            command = [sys.executable, '-B', '-X', 'utf8', '-m', 'hope_archive.semantic_worker']
+        from .optional_runtime import worker_command
+        command = worker_command(semantic=True, home=Path(directory).parent.parent)
         env = dict(os.environ, PYTHONIOENCODING='utf-8')
         if not getattr(sys, 'frozen', False):
             env['PYTHONPATH'] = os.pathsep.join([str(Path(__file__).resolve().parents[1]), *[p for p in sys.path if p]])
@@ -174,6 +172,7 @@ class SemanticService:
         self.worker = None
         self.stamp = None
         self.closed = False
+        self.cancelled = threading.Event()
 
     def derived(self, index): return VectorIndex(index, self.home / 'indexes')
 
@@ -211,6 +210,7 @@ class SemanticService:
             if self.closed: raise ValueError('服务已关闭。')
             if self.install_state in ('downloading', 'verifying') or 'indexing' in self.states.values():
                 return self.status(index)
+            self.cancelled.clear()
             if download: self.install_state = 'downloading'
             else: self.states[scope] = 'indexing'
             self.pool.submit(self.run, index, download, rebuild)
@@ -222,24 +222,33 @@ class SemanticService:
             if download:
                 def progress(state):
                     with self.lock: self.install_state = state
-                model.install(self.home, progress, lambda: self.closed)
+                model.install(self.home, progress, lambda: self.closed or self.cancelled.is_set())
                 with self.lock: self.install_state = ''; self.states[scope] = 'installed'
             with self.runtime_lock:
-                if self.closed: return
+                if self.closed or self.cancelled.is_set():
+                    with self.lock: self.states.pop(scope, None)
+                    return
                 with self.lock: self.states[scope] = 'indexing'
                 encoder = self.encoder()
                 def encode(text, kind):
-                    if self.closed: raise ValueError('Service closed')
+                    if self.closed or self.cancelled.is_set(): raise ValueError('Service stopped')
                     if len(text) > 500000: raise ValueError('Diary exceeds semantic safety limit')
                     return encoder(text, kind)
                 self.derived(index).sync(snapshot(index), encode, rebuild)
             with self.lock: self.states[scope] = 'ready'
         except Exception as exc:
             with self.lock:
-                if self.install_state:
+                if self.cancelled.is_set():
+                    self.install_state = ''
+                    self.states.pop(scope, None)
+                elif self.install_state:
                     self.install_state = 'verification_failed' if isinstance(exc, model.IntegrityError) else 'download_failed'
                 else: self.states[scope] = 'index_failed'
             with self.runtime_lock: self.drop_worker()
+
+    def cancel(self, index):
+        self.cancelled.set()
+        return self.status(index)
 
     def retrieve(self, index, question, terms, begin, end, category, limit):
         lexical = index.retrieve(question, terms, begin, end, category, 200)

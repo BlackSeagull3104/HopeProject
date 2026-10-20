@@ -1,0 +1,7 @@
+# Optional worker build/development environment, not the base application's deps.
+Pillow>=10.0,<13
+rapidocr==3.9.2
+onnxruntime==1.30.0
+opencv-python==5.0.0.93
+numpy==2.5.3
+tokenizers==0.22.2

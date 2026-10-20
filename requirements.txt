@@ -8,11 +8,4 @@ tkcalendar==1.6.1
 python-docx==1.2.0
 reportlab==4.4.10
 
-# Bundled local CPU OCR, initialized only in a disposable worker.
-rapidocr==3.9.2
-onnxruntime==1.30.0
-opencv-python==5.0.0.93
-numpy==2.5.3
-
-# Optional local semantic worker tokenizer; model is never bundled/downloaded at startup.
-tokenizers==0.22.2
+# Optional OCR/semantic worker dependencies are in requirements-runtime.txt.

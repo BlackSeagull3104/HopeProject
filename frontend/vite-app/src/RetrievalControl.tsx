@@ -1,12 +1,14 @@
 import { useEffect, useState } from "react"
 import { request, type Session } from "@/lib/api"
 import { retrievalModes, stateLabels, working, type ComponentState, type RetrievalMode } from "@/lib/retrieval"
+import { useRuntimeInstall } from "@/RuntimeInstall"
 import { Button } from "@/components/ui/button"
 
 type Status = { state: ComponentState; model: string; downloadBytes: number; storage: string }
 export function RetrievalControl({ mode, onChange, session, disabled = false }: {
   mode: RetrievalMode; onChange: (mode: RetrievalMode) => void; session?: Session; disabled?: boolean
 }) {
+  const runtime = useRuntimeInstall()
   const [status, setStatus] = useState<Status | null>(null)
   const [error, setError] = useState("")
   const [pending, setPending] = useState(false)
@@ -23,15 +25,16 @@ export function RetrievalControl({ mode, onChange, session, disabled = false }: 
     const timer = window.setInterval(() => void refresh(), 1500)
     return () => { active = false; window.clearInterval(timer) }
   }, [mode, session])
-  async function action(name: "install" | "index" | "rebuild") {
+  async function action(name: "install" | "index" | "rebuild" | "cancel") {
     setPending(true); setError("")
     try { setStatus(await request<Status>(`/library/semantic/${name}`, name === "install" ? { confirmed: true } : {}, session)) }
     catch { setError("操作失败，请重试。搜索仍可使用 FTS5。") }
     finally { setPending(false) }
   }
   return <section className="space-y-3 rounded-xl border bg-muted/20 p-4">
+    {runtime.panel}
     <label className="flex items-center gap-3 text-sm">检索模式
-      <select aria-label="检索模式" className="rounded-lg border bg-background p-2" value={mode} disabled={disabled} onChange={(e) => onChange(e.target.value as RetrievalMode)}>
+      <select aria-label="检索模式" className="rounded-lg border bg-background p-2" value={mode} disabled={disabled} onChange={(e) => { if (e.target.value === "Hybrid") void runtime.ensure(() => onChange("Hybrid")); else onChange("FTS5") }}>
         {retrievalModes.map((name) => <option key={name} value={name}>{name}</option>)}
       </select>
     </label>
@@ -41,10 +44,11 @@ export function RetrievalControl({ mode, onChange, session, disabled = false }: 
       <p>intfloat/multilingual-e5-small · 下载约 129.16 MiB · 处理在本机完成，日记文本不会上传用于 embedding。无需 API Key。</p>
       <p>存放于应用管理的本机缓存，不在日记归档或备份中。首次下载需联网，完成后可离线使用。</p>
       <p>{status ? stateLabels[status.state] : "正在读取组件状态…"}</p>
+      {status && working(status.state) && <Button variant="outline" disabled={pending} onClick={() => void action("cancel")}>取消语义组件操作</Button>}
       {status && !working(status.state) && <div className="flex flex-wrap gap-2">
-        {["not_installed", "download_failed", "verification_failed", "index_failed"].includes(status.state) && <Button variant="outline" disabled={pending} onClick={() => void action("install")}>下载并启用</Button>}
-        {!["not_installed", "download_failed", "verification_failed"].includes(status.state) && <Button variant="outline" disabled={pending} onClick={() => void action(status.state === "index_failed" ? "rebuild" : "index")}>更新语义索引</Button>}
-        {status.state === "ready" && <Button variant="ghost" disabled={pending} onClick={() => void action("rebuild")}>重建语义索引</Button>}
+        {["not_installed", "download_failed", "verification_failed", "index_failed"].includes(status.state) && <Button variant="outline" disabled={pending} onClick={() => void runtime.ensure(() => void action("install"))}>下载并启用</Button>}
+        {!["not_installed", "download_failed", "verification_failed"].includes(status.state) && <Button variant="outline" disabled={pending} onClick={() => void runtime.ensure(() => void action(status.state === "index_failed" ? "rebuild" : "index"))}>更新语义索引</Button>}
+        {status.state === "ready" && <Button variant="ghost" disabled={pending} onClick={() => void runtime.ensure(() => void action("rebuild"))}>重建语义索引</Button>}
       </div>}
       {status?.state !== "ready" && <p>组件未就绪时使用 FTS5；不会自动下载。</p>}
       {error && <p role="alert" className="text-destructive">{error}</p>}

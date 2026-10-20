@@ -3,6 +3,7 @@ import { request, type Session, type Job } from "@/lib/api"
 import { EXPORT_FORMATS, todayString, type ExportFormat } from "@/lib/export"
 import { DIARY_TYPES } from "@/lib/diary"
 import { Button } from "@/components/ui/button"
+import { useRuntimeInstall } from "@/RuntimeInstall"
 import { ArchiveFolderButton } from "@/ArchiveFolderButton"
 
 export const inputClass = "min-w-0 rounded-lg border bg-background p-3 text-sm"
@@ -165,6 +166,7 @@ type OCRStatus = {
   error?: string
 }
 export function OCRPage() {
+  const runtime = useRuntimeInstall()
   const [files, setFiles] = useState<File[]>([])
   const [pages, setPages] = useState<OCRPage[]>([])
   const [format, setFormat] = useState<ExportFormat>("markdown")
@@ -262,6 +264,7 @@ export function OCRPage() {
   return (
     <main className="mx-auto max-w-5xl space-y-6 p-8">
       <h2 className="text-3xl font-semibold">识图转文字</h2>
+      {runtime.panel}
       <p>本机离线识别中文、英文和混合文字，图片不会发送到 AI 服务商。</p>
       <div className="grid gap-3">
         <p>选择图片（PNG、JPG/JPEG、WEBP）</p>
@@ -292,7 +295,7 @@ export function OCRPage() {
       <p className="text-sm text-muted-foreground">
         按上方顺序逐张识别，最多 20 张；每张不超过 2000 万像素。不重建复杂分栏。
       </p>
-      <Button disabled={busy || !files.length} onClick={() => void recognize()}>
+      <Button disabled={busy || !files.length} onClick={() => void runtime.ensure(() => void recognize())}>
         {busy ? "正在识别…" : "识别文字"}
       </Button>
       {busy && jobId && (

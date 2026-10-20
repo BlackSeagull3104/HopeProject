@@ -5,7 +5,7 @@ a = Analysis(
     [str(root / 'packaging/backend_entry.py')],
     pathex=[str(root / 'src')],
     binaries=[], datas=[], hiddenimports=[],
-    excludes=['tkinter', 'tkcalendar', 'pytest', 'rapidocr', 'onnxruntime', 'cv2', 'numpy', 'shapely'],
+    excludes=['tkinter', 'tkcalendar', 'pytest', 'rapidocr', 'onnxruntime', 'cv2', 'numpy', 'shapely', 'tokenizers'],
     noarchive=False,
 )
 pyz = PYZ(a.pure)

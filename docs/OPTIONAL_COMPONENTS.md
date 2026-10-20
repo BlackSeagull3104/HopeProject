@@ -1,0 +1,39 @@
+# OCR 与语义检索按需组件
+
+这是源码中的新安装方式；此前发布的 Alpha 2 安装包未被修改。初次源码实现时未构建产物；随后经授权进入 Alpha 3 候选构建与发布验证。
+
+## 用户流程
+
+基本安装只包含应用与普通后端。预览、归档、文档导出、FTS5 不依赖可选运行组件。第一次点击 OCR 识别或选择 Hybrid 时，应用先检查本机组件；没有组件时展示下载确认、下载大小和解压占用。取消不启动识别，不改变关键词检索模式，也不下载任何内容。
+
+OCR 和 Hybrid 共用一份运行组件，包括 NumPy、OpenCV、ONNX Runtime、tokenizers、RapidOCR、OCR 模型及许可证。OCR 安装完成后可离线使用。Hybrid 另外需要已有的固定版本语义模型；在用户选择“下载并启用”后下载，具备大小与哈希校验。运行组件和模型都安装完成后，语义推理也不需要联网。AI 在线生成仍取决于用户选择的服务商，不属于本地语义检索。
+
+运行组件下载支持取消、失败重试和损坏修复。已成功安装的同一版本由两个功能共用，不重复下载。离开页面不会偷偷启动下载；用户已经确认的后台安装可从另一入口查看或取消。语义模型下载及索引操作也有取消按钮，取消可能需等待当前网络读取或推理步骤结束。
+
+## 存储与安全
+
+组件位于应用 profile 下的 `components/inference/<version>`，不在 diary/archive 中；OCR 和语义 worker 使用同一个受校验路径。程序启动不下载组件，不上传日记或图片；只有显式确认才调用固定 HTTPS 地址。
+
+应用携带可信 `runtime_catalog.py`，固定 ZIP 的版本、大小、SHA-256，以及全部解压文件的大小和 SHA-256。下载到临时目录，验证归档和文件集合，拒绝越界路径、重复大小写文件名、链接及 Windows 保留名，完成后才启用。执行 worker 前再次校验全部文件；状态轮询缓存成功校验的文件元数据。下载失败或取消清理临时目录；损坏的旧组件在显式修复时移至 `damaged-*` 保留恢复证据，不再执行。旧版本目录不会自动删除。
+
+运行组件安装由桌面服务的同一个管理器串行化；OCR 与 Hybrid 不各自维护安装副本。运行和模型缓存中的内容应按本机数据保管。本方案不承诺防御能改写应用本身的本机攻击者。
+
+## 开发与后续发布
+
+- 普通 Python 依赖在 `requirements.txt`；可选 worker 开发/构建依赖在 `requirements-runtime.txt`。
+- 源码调试的 Python worker 使用开发环境，不自动安装 pip 包。开发者需自行安装可选依赖；前端仍走组件确认流程，可用合成 API 状态验证交互。
+- `scripts/build_windows.ps1` 不再构建或复制 OCR runtime，Tauri resources 不再包含 runtime。便携目录必须为空，避免旧文件混入。
+- `scripts/build_runtime.ps1` 是单独、显式运行的组件构建入口。Alpha 3 候选已使用此入口构建独立组件。
+- 后续经授权构建并完成 OCR、语义推理和离线验证后，设置 `PYTHONPATH=src`，用 `scripts/prepare_runtime_release.py <runtime-directory> <new-output-directory> --version <immutable-version> --url <immutable-https-asset-url>` 产生组件 ZIP 与待审查的 `runtime_catalog.py`。脚本不上传、不自动替换源码。
+- 发布前审核完整运行组件、第三方许可证、哈希及下载地址，将审查后的 catalog 纳入下一版应用，再验证真实下载、安装、取消和离线运行。版本号必须与 worker 协议兼容；升级要采用新的不可变版本。
+
+初次实现时 catalog 为 `None`，下载关闭。Alpha 3 候选现已填入实际构建组件的大小、完整哈希和拟发布的不可变 GitHub asset 地址；只有候选验证完成并发布后该地址才可用。 完整安装包构建入口在 catalog 未配置时拒绝继续；BackendOnly 可供开发验证。不能把源码和模拟测试通过当成可直接发布的安装包验收。
+
+## 本轮测试
+
+- 完整 Python：342 项，341 通过、1 项符号链接权限跳过。随后新增网络降级拒绝与语义下载取消测试，相关两套测试共 38 项再次通过。
+- 前端：22 项通过，TypeScript 和 ESLint 通过。
+- `scripts/smoke_optional_runtime.mjs`：真实浏览器与 React 页面，合成下载/API 状态，覆盖拒绝、取消、重试、继续 OCR、共用安装、未发布状态和 FTS5 回退。禁止外部请求。
+- 新增后端测试使用临时合成 ZIP，覆盖校验失败、目录越界、缺失文件、损坏修复、并发去重、离线重启及基本 API 可用。
+
+Alpha 3 的实际构建大小、打包应用验证及发布结果由对应 release manifest 和发布说明记录；不将早期模拟测试等同于产物验收。

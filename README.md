@@ -208,3 +208,5 @@ Hope Archive 支持 SMS verification-code login 和 mobile/password login。
 React + shadcn 前端位于 `frontend/vite-app/`，通过本机 Python API 调用既有后端。完整启动命令、登录数据流和当前限制见 [React / Local API](docs/REACT_LOCAL_API.md)。旧 Python UI 和 CLI 保留。
 
 整个项目现在只有根 Git 仓库；前端是普通目录，不需要单独 clone、初始化 Git 或更新 submodule。在根目录统一提交 Python、React、tests 和 docs。仓库整理及发布检查见 [repository-cleanup.md](docs/repository-cleanup.md)。
+
+开发中的精简安装方案见 [OCR 与语义检索按需组件](docs/OPTIONAL_COMPONENTS.md)：共用运行依赖改为用户确认后安装。现有 Alpha 2 安装包未改变；Alpha 3 共用组件已独立构建并固定校验信息，需完成候选验证后随预发布提供下载。

@@ -234,7 +234,7 @@ class LocalService:
             raise RequestError(400, str(exc)) from None
 
     def dispatch(self, method, path, body, token):
-        if path.startswith(('/settings/', '/library/', '/ocr/')):
+        if path.startswith(('/settings/', '/library/', '/ocr/', '/components/')):
             from .product_api import dispatch
             return dispatch(self, method, path, body, token)
         if method == 'GET' and path == '/health':
@@ -360,6 +360,8 @@ def main():
     finally:
         server.shutdown()
         server.server_close()
+        if hasattr(server.service, 'runtime_component'):
+            server.service.runtime_component.close()
         if hasattr(server.service, 'semantic_service'):
             server.service.semantic_service.close()
         server.service.pool.shutdown(wait=True)
