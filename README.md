@@ -6,18 +6,19 @@
 
 ### Windows
 
-[⬇ **Download Hope Archive for Windows**](https://github.com/BlackSeagull3104/HopeProject/releases/download/v0.2.0-alpha.2/HopeArchive-0.2.0-alpha.2-Setup.exe)
+[⬇ **Download Hope Archive for Windows**](https://github.com/BlackSeagull3104/HopeProject/releases/download/v0.2.0-alpha.3/HopeArchive-0.2.0-alpha.3-Setup.exe)
 
-> Alpha Pre-release · Windows x64 · v0.2.0-alpha.2
+> Alpha Pre-release · Windows x64 · v0.2.0-alpha.3
 
-1. 下载 `HopeArchive-0.2.0-alpha.2-Setup.exe`。
+1. 下载 `HopeArchive-0.2.0-alpha.3-Setup.exe`。
 2. 双击安装包，按照提示完成安装。
 3. 从开始菜单打开 **Hope Archive**。
 4. 使用自己的 Hope 账号登录，或直接使用离线搜索与 AI 设置。
+5. 首次使用 OCR 或 Hybrid 时，按提示选择是否安装共用本地组件；取消不影响其他基础功能。
 
 无需 Python、Node.js、Rust、克隆仓库或手动配置协议常量。运行需要 Microsoft WebView2 Runtime；缺少该组件时，安装程序会尝试联网下载并安装。
 
-[发布说明与全部下载文件](https://github.com/BlackSeagull3104/HopeProject/releases/tag/v0.2.0-alpha.2) · [校验清单（SHA-256）](https://github.com/BlackSeagull3104/HopeProject/releases/download/v0.2.0-alpha.2/HopeArchive-0.2.0-alpha.2-manifest.json)
+[发布说明与全部下载文件](https://github.com/BlackSeagull3104/HopeProject/releases/tag/v0.2.0-alpha.3) · [校验清单（SHA-256）](https://github.com/BlackSeagull3104/HopeProject/releases/download/v0.2.0-alpha.3/HopeArchive-0.2.0-alpha.3-manifest.json)
 
 这是未签名开发预览，不是稳定版本。应用级协议常量随 Python 后端分发；手机号、密码、验证码、会话和日记不随安装包分发。
 
@@ -47,7 +48,7 @@ Hope Archive 还没有做完。现在的很多功能已经可以使用，但无�
 
 ## Features
 
-`0.2.0-alpha.2` 包含实验性 AI 日记助手，以及可选下载的本地 Hybrid 检索组件。实现、隐私边界和验证范围见 [Hybrid 检索说明](docs/HYBRID_RETRIEVAL.md)。AI 尚未完成完整人工测试。
+`0.2.0-alpha.3` 包含实验性 AI 日记助手，OCR 与 Hybrid 共用按需下载的本地运行组件。实现、隐私边界和验证范围见 [Hybrid 检索说明](docs/HYBRID_RETRIEVAL.md)。AI 尚未完成完整人工测试。
 
 - 通过现有短信/密码认证流程登录自己的账号。
 - 下载自己的日记与媒体，整理为本地 Markdown。
@@ -209,4 +210,4 @@ React + shadcn 前端位于 `frontend/vite-app/`，通过本机 Python API 调�
 
 整个项目现在只有根 Git 仓库；前端是普通目录，不需要单独 clone、初始化 Git 或更新 submodule。在根目录统一提交 Python、React、tests 和 docs。仓库整理及发布检查见 [repository-cleanup.md](docs/repository-cleanup.md)。
 
-开发中的精简安装方案见 [OCR 与语义检索按需组件](docs/OPTIONAL_COMPONENTS.md)：共用运行依赖改为用户确认后安装。现有 Alpha 2 安装包未改变；Alpha 3 共用组件已独立构建并固定校验信息，需完成候选验证后随预发布提供下载。
+精简安装方案见 [OCR 与语义检索按需组件](docs/OPTIONAL_COMPONENTS.md)：共用运行依赖改为用户确认后安装。现有 Alpha 2 安装包未改变；Alpha 3 安装包约 24.9 MiB，共用组件另需约 114.8 MiB；已验证实际下载、安装后 OCR/Hybrid 和断网重启。
