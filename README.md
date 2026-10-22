@@ -6,11 +6,11 @@
 
 ### Windows
 
-[⬇ **Download Hope Archive for Windows**](https://github.com/BlackSeagull3104/HopeProject/releases/download/v0.2.0-alpha.3/HopeArchive-0.2.0-alpha.3-Setup.exe)
+[⬇ **Download Hope Archive for Windows**](https://github.com/BlackSeagull3104/HopeProject/releases/download/v0.2.0-alpha.4/HopeArchive-0.2.0-alpha.4-Setup.exe)
 
-> Alpha Pre-release · Windows x64 · v0.2.0-alpha.3
+> Alpha Pre-release · Windows x64 · v0.2.0-alpha.4
 
-1. 下载 `HopeArchive-0.2.0-alpha.3-Setup.exe`。
+1. 下载 `HopeArchive-0.2.0-alpha.4-Setup.exe`。
 2. 双击安装包，按照提示完成安装。
 3. 从开始菜单打开 **Hope Archive**。
 4. 使用自己的 Hope 账号登录，或直接使用离线搜索与 AI 设置。
@@ -18,7 +18,7 @@
 
 无需 Python、Node.js、Rust、克隆仓库或手动配置协议常量。运行需要 Microsoft WebView2 Runtime；缺少该组件时，安装程序会尝试联网下载并安装。
 
-[发布说明与全部下载文件](https://github.com/BlackSeagull3104/HopeProject/releases/tag/v0.2.0-alpha.3) · [校验清单（SHA-256）](https://github.com/BlackSeagull3104/HopeProject/releases/download/v0.2.0-alpha.3/HopeArchive-0.2.0-alpha.3-manifest.json)
+[发布说明与全部下载文件](https://github.com/BlackSeagull3104/HopeProject/releases/tag/v0.2.0-alpha.4) · [校验清单（SHA-256）](https://github.com/BlackSeagull3104/HopeProject/releases/download/v0.2.0-alpha.4/HopeArchive-0.2.0-alpha.4-manifest.json)
 
 这是未签名开发预览，不是稳定版本。应用级协议常量随 Python 后端分发；手机号、密码、验证码、会话和日记不随安装包分发。
 
@@ -48,7 +48,7 @@ Hope Archive 还没有做完。现在的很多功能已经可以使用，但无�
 
 ## Features
 
-`0.2.0-alpha.3` 包含实验性 AI 日记助手，OCR 与 Hybrid 共用按需下载的本地运行组件。实现、隐私边界和验证范围见 [Hybrid 检索说明](docs/HYBRID_RETRIEVAL.md)。AI 尚未完成完整人工测试。
+`0.2.0-alpha.4` 包含实验性 AI 日记助手，OCR 与 Hybrid 共用按需下载的本地运行组件。实现、隐私边界和验证范围见 [Hybrid 检索说明](docs/HYBRID_RETRIEVAL.md)。AI 尚未完成完整人工测试。
 
 - 通过现有短信/密码认证流程登录自己的账号。
 - 下载自己的日记与媒体，整理为本地 Markdown。
