@@ -15,16 +15,19 @@ export function RetrievalControl({ mode, onChange, session, disabled = false }: 
   useEffect(() => {
     if (mode !== "Hybrid") return
     let active = true
+    let timer: number | undefined
     async function refresh() {
+      let delay = 1500
       try {
         const next = await request<Status>("/library/semantic/status", {}, session)
         if (active) { setStatus(next); setError("") }
+        if (!working(next.state)) delay = 15000
       } catch { if (active) setError("无法读取语义组件状态；搜索仍可使用 FTS5。") }
+      finally { if (active) timer = window.setTimeout(() => void refresh(), delay) }
     }
     void refresh()
-    const timer = window.setInterval(() => void refresh(), 1500)
-    return () => { active = false; window.clearInterval(timer) }
-  }, [mode, session])
+    return () => { active = false; window.clearTimeout(timer) }
+  }, [mode, session, pending])
   async function action(name: "install" | "index" | "rebuild" | "cancel") {
     setPending(true); setError("")
     try { setStatus(await request<Status>(`/library/semantic/${name}`, name === "install" ? { confirmed: true } : {}, session)) }

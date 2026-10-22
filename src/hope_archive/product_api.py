@@ -75,8 +75,8 @@ def dispatch(service, method, path, body, token):
                 return dict(result,migration=migration,migrationWarning=getattr(service,'migration_warning',''))
         if path == '/ocr/start':
             if set(body) != {'images'}: raise ValueError('图片请求格式无效。')
-            import sys
-            if getattr(sys, 'frozen', False): service.runtime_component.command()
+            # The background worker verifies every file immediately before execution.
+            # Do not hash the same runtime here and block the request a second time.
             return service.ocr_jobs.start(body['images'])
         if path in ('/ocr/status', '/ocr/cancel'):
             fields(body, ['jobId'])

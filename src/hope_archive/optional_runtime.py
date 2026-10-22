@@ -1,4 +1,5 @@
 """One explicitly installed, integrity-checked runtime shared by OCR and Hybrid."""
+import errno
 import hashlib
 import os
 from pathlib import Path, PurePosixPath
@@ -10,6 +11,7 @@ import tempfile
 import threading
 import time
 from urllib.request import Request, urlopen
+from urllib.error import URLError
 import zipfile
 import uuid
 
@@ -35,6 +37,7 @@ class RuntimeComponent:
         self.stop = threading.Event()
         self.state = ''
         self.received = 0
+        self.error = ''
         self.thread = None
         self.verified_stamp = None
 
@@ -79,7 +82,7 @@ class RuntimeComponent:
                     'installed': ready, 'available': self.catalog is not None,
                     'downloadBytes': self.catalog['bytes'] if self.catalog else None,
                     'diskBytes': sum(f['bytes'] for f in self.catalog['files'].values()) if self.catalog else None,
-                    'receivedBytes': self.received}
+                    'receivedBytes': self.received, 'error': self.error}
 
     def command(self):
         directory = self.target()
@@ -101,7 +104,7 @@ class RuntimeComponent:
                 # Keep damaged payload for recovery; never overwrite a generation.
                 self.target().rename(self.home / ('damaged-' + uuid.uuid4().hex))
             self.stop.clear()
-            self.state, self.received = 'downloading', 0
+            self.state, self.received, self.error = 'downloading', 0, ''
             self.thread = threading.Thread(target=self.run, daemon=True)
             self.thread.start()
             return self.status()
@@ -123,7 +126,7 @@ class RuntimeComponent:
             if not c['url'].startswith('https://'): raise ValueError('HTTPS required')
             self.home.mkdir(parents=True, exist_ok=True)
             if shutil.disk_usage(self.home).free < c['bytes'] + sum(f['bytes'] for f in c['files'].values()) + 16*1024*1024:
-                raise ValueError('Insufficient disk')
+                raise OSError(errno.ENOSPC, 'Insufficient disk')
             staging = Path(tempfile.mkdtemp(prefix='download-', dir=self.home))
             archive = staging / 'component.zip'
             deadline = time.monotonic() + 900
@@ -164,9 +167,21 @@ class RuntimeComponent:
                 payload.rename(self.target())
                 self.verified_stamp = None
                 self.state = ''
-        except Exception:
+        except Exception as exc:
+            # Only fixed messages cross the API: never expose paths or remote bodies.
+            if isinstance(exc, OSError) and exc.errno == errno.ENOSPC:
+                message = '磁盘空间不足，请释放空间后重试。'
+            elif isinstance(exc, (URLError, TimeoutError, ConnectionError)):
+                message = '组件下载失败，请检查网络后重试。'
+            elif isinstance(exc, PermissionError):
+                message = '无法写入组件目录，请检查目录权限或安全软件拦截后重试。'
+            elif isinstance(exc, (ValueError, zipfile.BadZipFile)):
+                message = '组件完整性校验失败，未启用组件，请重新下载。'
+            else:
+                message = '组件安装未完成，请重试；其他功能仍可使用。'
             with self.lock:
                 self.state = 'cancelled' if self.stop.is_set() else 'failed'
+                self.error = '' if self.stop.is_set() else message
         finally:
             if staging is not None: shutil.rmtree(staging, ignore_errors=True)
 

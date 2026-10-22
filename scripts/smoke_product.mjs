@@ -25,7 +25,7 @@ try {
   await page.getByRole('dialog',{name:'选择归档目录'}).waitFor()
   await page.getByRole('button',{name:'稍后设置'}).click()
   const labels=await page.locator('nav button').allTextContents()
-  if(labels.join('|')!=='日记预览|日记归档|时间胶囊|本地搜索|识图转文字|设置')throw Error('Navigation mismatch')
+  if(labels.join('|')!=='日记预览|日记归档|时间胶囊|本地搜索|AI 日记助手|识图转文字|设置')throw Error('Navigation mismatch')
   await page.getByText('请登录 Hope 后浏览云端日记。',{exact:true}).waitFor()
   await page.route('**/api/auth/login/code',route=>route.fulfill({json:{token:'fixture-session',userId:'fixture-user',displayName:'合成用户'}}))
   let cloudMode='success',previewRequest
@@ -104,6 +104,9 @@ try {
   const names=['01_chinese_clear.png','02_english_clear.png','03_mixed_technical.png','16_blank.png']
   await page.locator('input[type=file]').setInputFiles(names.map(name=>path.join(root,'tests/fixtures/ocr',name)))
   if(!await page.getByRole('button',{name:'选择文件',exact:true}).isEnabled())throw Error('OCR primary picker unavailable')
+  // Source workers use the explicitly provisioned developer environment.
+  // Real download consent is exercised by smoke_optional_runtime.mjs.
+  await page.route('**/api/components/runtime/status',route=>route.fulfill({json:{state:'installed',installed:true,available:true}}))
   await page.getByRole('button',{name:'识别文字',exact:true}).click()
   await page.getByText('识别完成，可以逐页编辑后导出。',{exact:true}).waitFor({timeout:90000})
   await page.getByLabel('第 1 页文字').fill('编辑后的合成中文 English export')
@@ -124,5 +127,5 @@ try {
   if(!fs.readFileSync(path.join(exports,'archive/ocr',txt),'utf8').includes('编辑后的合成中文'))throw Error('Edits not exported')
   if(errors.length || external.length)throw Error('Unexpected page error or external request')
   fs.writeFileSync(path.join(output,'result.json'),JSON.stringify({navigation:labels,onboardingCancel:true,persistedExportRoot:true,blankSearchDates:true,openedOnly:true,providers:11,realOCR:true,editableResult:true,formats:5,externalRequests:external,javascriptErrors:errors},null,2))
-  console.log('PASS: real product UI, onboarding, settings, six navigation sections, offline OCR and five edited exports')
+  console.log('PASS: real product UI, onboarding, settings, seven navigation sections, offline OCR and five edited exports')
 }catch(error){if(page){await page.screenshot({path:path.join(output,'failure.png')}).catch(()=>{});console.log('Synthetic test alerts:',await page.getByRole('alert').allTextContents())}throw error}finally{if(browser)await browser.close();backend.kill();frontend.kill()}

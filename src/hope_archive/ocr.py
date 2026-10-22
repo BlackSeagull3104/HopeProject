@@ -42,14 +42,16 @@ class OCRJobs:
 
     def run(self, identity, images):
         process = None
+        job = self.jobs[identity]
         try:
+            command = worker_command(self.home)
             with self.lock:
                 job = self.jobs[identity]
                 if job['cancelled']: return
                 env = dict(os.environ, PYTHONIOENCODING='utf-8')
                 if not getattr(sys, 'frozen', False):
                     env['PYTHONPATH'] = os.pathsep.join([str(Path(__file__).resolve().parents[1]), *[p for p in sys.path if p]])
-                process = subprocess.Popen(worker_command(self.home), stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+                process = subprocess.Popen(command, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
                     stderr=subprocess.DEVNULL, env=env, creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0))
                 job['process'] = process
             started = time.perf_counter()
@@ -60,9 +62,15 @@ class OCRJobs:
                 if not job['cancelled']:
                     job['process'] = None
                     job.update(state='completed', result=result, elapsedSeconds=time.perf_counter()-started)
-        except Exception:
+        except Exception as exc:
+            if isinstance(exc, subprocess.TimeoutExpired):
+                message = '识别超时，请减少图片数量或尺寸后重试。'
+            elif process is None:
+                message = '本地识别组件未就绪或无法启动，请安装或修复组件后重试。'
+            else:
+                message = '识别失败，请检查图片或本地识别组件。'
             with self.lock:
-                job.update(state='failed', error='识别失败，请检查图片或本地识别组件。')
+                job.update(state='failed', error=message)
         finally:
             if process is not None:
                 if process.poll() is None: process.kill()

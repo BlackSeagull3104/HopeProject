@@ -162,3 +162,37 @@ class RuntimeTests(unittest.TestCase):
         script = (root / 'scripts/build_windows.ps1').read_text()
         self.assertNotIn("Copy-Item -LiteralPath 'dist/backend/ocr-runtime'", script)
         self.assertNotIn('packaging/ocr.spec', script)
+
+    def test_failure_messages_are_actionable_and_do_not_echo_details(self):
+        from urllib.error import URLError
+        import errno
+        cases = [(URLError('sensitive-secret'), '网络'),
+                 (OSError(errno.ENOSPC, 'sensitive-secret'), '磁盘'),
+                 (PermissionError('sensitive-secret'), '权限'),
+                 (ValueError('sensitive-secret'), '校验')]
+        for error, expected in cases:
+            with self.subTest(expected=expected), patch.object(optional_runtime, 'urlopen', side_effect=error):
+                self.runtime.start(True)
+                self.runtime.thread.join(5)
+                status = self.runtime.status()
+                self.assertEqual(status['state'], 'failed')
+                self.assertIn(expected, status['error'])
+                self.assertNotIn('sensitive-secret', json.dumps(status))
+        self.install()
+        self.assertEqual(self.runtime.status()['error'], '')
+
+    def test_ocr_rejects_corrupt_runtime_before_process_launch(self):
+        from hope_archive import ocr
+        self.install()
+        (self.runtime.target() / WORKER).write_bytes(b'corrupt')
+        jobs = ocr.OCRJobs(self.home)
+        with patch.object(optional_runtime.sys, 'frozen', True, create=True), \
+             patch.object(optional_runtime, 'RuntimeComponent', return_value=self.runtime), \
+             patch.object(ocr.subprocess, 'Popen') as launch:
+            identity = jobs.start([{'name': 'synthetic.png', 'data': 'AA=='}])['jobId']
+            import time
+            deadline = time.monotonic() + 5
+            while jobs.status(identity)['state'] == 'running' and time.monotonic() < deadline:
+                time.sleep(.01)
+            self.assertEqual(jobs.status(identity)['state'], 'failed')
+            launch.assert_not_called()

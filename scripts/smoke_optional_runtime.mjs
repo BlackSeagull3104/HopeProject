@@ -16,7 +16,7 @@ try {
   const page = await browser.newPage()
   const errors = []
   page.on('pageerror', error => errors.push(error.message))
-  let state = 'not_installed', installs = 0, cancels = 0, recognitions = 0, available = true
+  let state = 'not_installed', installs = 0, cancels = 0, recognitions = 0, available = true, failStatus = false
   await page.route('**/*', route => {
     const url = new URL(route.request().url())
     if (!['127.0.0.1', 'localhost'].includes(url.hostname)) return route.abort()
@@ -25,6 +25,7 @@ try {
     let data = {}
     if (name === '/settings/read') data = {exportConfigured: true, exportRoot: 'synthetic', archiveRoot: 'synthetic'}
     else if (name.startsWith('/components/runtime/')) {
+      if (name.endsWith('/status') && failStatus) { failStatus = false; return route.fulfill({status:503,json:{error:'Synthetic unavailable'}}) }
       if (name.endsWith('/install')) {
         assert.equal(route.request().postDataJSON().confirmed, true)
         installs++; state = 'downloading'
@@ -76,6 +77,25 @@ try {
   assert.equal(await dialog.getByRole('button', {name: '确认下载并安装'}).isDisabled(), true)
   await dialog.getByRole('button', {name: '取消', exact: true}).click()
   assert.equal(await page.getByLabel('检索模式', {exact: true}).inputValue(), 'FTS5')
+  // A failed first status request must retain intent through recovery.
+  available = true; state = 'installed'; failStatus = true
+  await page.getByLabel('检索模式', {exact:true}).selectOption('Hybrid')
+  await dialog.getByText('无法读取组件状态，请稍后重试。').waitFor()
+  await dialog.getByRole('button', {name:'继续使用'}).click()
+  assert.equal(await page.getByLabel('检索模式', {exact:true}).inputValue(), 'Hybrid')
+  assert.equal(await dialog.count(), 0)
+  // Recovery clears obsolete errors; Escape restores the initiating control.
+  await page.getByLabel('检索模式', {exact:true}).selectOption('FTS5')
+  state = 'not_installed'; failStatus = true
+  await page.getByLabel('检索模式', {exact:true}).focus()
+  await page.getByLabel('检索模式', {exact:true}).selectOption('Hybrid')
+  await dialog.getByText('无法读取组件状态，请稍后重试。').waitFor()
+  await dialog.getByRole('button', {name:'确认下载并安装'}).waitFor()
+  await page.waitForFunction(() => !document.body.textContent.includes('无法读取组件状态，请稍后重试。'))
+  await dialog.press('Escape')
+  await dialog.waitFor({state:'hidden'})
+  assert.equal(await page.getByLabel('检索模式', {exact:true}).evaluate(el => el === document.activeElement), true)
+  assert.equal(recognitions, 1); assert.equal(installs, 2)
   assert.deepEqual(errors, [])
   console.log('PASS: explicit consent, decline, cancel, retry, OCR continuation, shared runtime and FTS5 fallback; no external requests.')
 } finally {
