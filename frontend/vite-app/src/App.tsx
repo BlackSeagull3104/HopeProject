@@ -1,3 +1,4 @@
+import { isTauri } from "@tauri-apps/api/core"
 import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { request, type Session } from "@/lib/api"
@@ -28,6 +29,7 @@ function Login({
   onLogin: (session: Session) => void
   onClose: () => void
 }) {
+  const [remember, setRemember] = useState(false)
   const [mode, setMode] = useState("code")
   const [mobile, setMobile] = useState("")
   const [secret, setSecret] = useState("")
@@ -58,6 +60,7 @@ function Login({
             const session = await request<Session>(`/auth/login/${mode}`, {
               mobile: mobile.trim(),
               secret: credential,
+              ...(isTauri() ? { remember } : {}),
             })
             setMobile("")
             onLogin(session)
@@ -70,6 +73,10 @@ function Login({
       >
         <h2 className="text-2xl font-semibold">登录 Hope</h2>
         <p>登录后可下载日记及已开启时间胶囊。</p>
+        {isTauri() && <label className="flex items-start gap-2 text-sm">
+          <input type="checkbox" checked={remember} disabled={busy} onChange={(event) => setRemember(event.target.checked)} />
+          <span>在此电脑保留登录 12 小时<br /><span className="text-muted-foreground">使用 Windows 安全存储，不保存密码或验证码；共享电脑请勿勾选。退出登录会清除。</span></span>
+        </label>}
         <fieldset disabled={busy} className="grid gap-4">
           <label className="grid gap-2">
             登录方式
@@ -273,6 +280,7 @@ function OpenedCapsules({
 
 export function App() {
   const [session, setSession] = useState<Session | null>(null)
+  const [restoring, setRestoring] = useState(isTauri)
   const [page, setPage] = useState<Page>("preview")
   const [aiSelectedIds, setAiSelectedIds] = useState<string[]>([])
   const [login, setLogin] = useState(false)
@@ -297,6 +305,15 @@ export function App() {
     return () => {
       active = false
     }
+  }, [])
+  useEffect(() => {
+    if (!isTauri()) return
+    let active = true
+    request<{ session: Session | null }>("/auth/restore", {})
+      .then((result) => { if (active) setSession(result.session) })
+      .catch(() => { if (active) setError("无法恢复登录，请重新登录。") })
+      .finally(() => { if (active) setRestoring(false) })
+    return () => { active = false }
   }, [])
   async function chooseDirectory() {
     try {
@@ -344,6 +361,7 @@ export function App() {
           <span>{navigation.find(([id]) => id === page)?.[1]}</span>
           <Button
             variant="ghost"
+            disabled={restoring}
             onClick={async () => {
               if (!session) {
                 setLogin(true)
@@ -358,7 +376,7 @@ export function App() {
               }
             }}
           >
-            {session ? "退出登录" : "登录 Hope"}
+            {restoring ? "正在恢复登录…" : session ? "退出登录" : "登录 Hope"}
           </Button>
         </header>
         {error && (

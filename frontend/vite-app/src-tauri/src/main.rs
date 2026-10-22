@@ -166,6 +166,7 @@ async fn desktop_request(
                 | "/auth/login/code"
                 | "/auth/login/password"
                 | "/auth/logout"
+                | "/auth/restore"
                 | "/archive/download"
                 | "/export/markdown"
                 | "/export/document"
