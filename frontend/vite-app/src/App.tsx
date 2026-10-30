@@ -315,6 +315,9 @@ export function App() {
       .finally(() => { if (active) setRestoring(false) })
     return () => { active = false }
   }, [])
+  function openLogin() {
+    if (!restoring) setLogin(true)
+  }
   async function chooseDirectory() {
     try {
       const selected = await pickDirectory(preferences.exportRoot)
@@ -364,7 +367,7 @@ export function App() {
             disabled={restoring}
             onClick={async () => {
               if (!session) {
-                setLogin(true)
+                openLogin()
                 return
               }
               try {
@@ -395,21 +398,21 @@ export function App() {
             key={session?.token || "offline"}
             session={session ?? undefined}
             onArchive={() => setPage("archive")}
-            onLogin={() => setLogin(true)}
+            onLogin={openLogin}
           />
         )}
         {page === "archive" && (
           <ArchivePage
             key={session?.token || "offline"}
             session={session}
-            onLogin={() => setLogin(true)}
+            onLogin={openLogin}
           />
         )}
         {page === "capsules" && (
           <OpenedCapsules
             key={session?.token || "offline"}
             session={session}
-            onLogin={() => setLogin(true)}
+            onLogin={openLogin}
           />
         )}
         {page === "search" && (
